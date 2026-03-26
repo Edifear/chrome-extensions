@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #1e1e24;
+      --bg-surface: #262630;
+      --bg-elevated: #2e2e3a;
+      --bg-input: #26262e;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-focus: rgba(210, 160, 110, 0.4);
+      --text-primary: #c8c8d2;
+      --text-secondary: #78788a;
+      --text-muted: #55556a;
+      --accent: #c4926a;
+      --accent-hover: #d4a47a;
+      --accent-subtle: rgba(196, 146, 106, 0.1);
+      --filter-text: #c48070;
+      --danger: #a06060;
+      --radius: 8px;
+      --radius-sm: 6px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 360px;
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---- Tabs ---- */
+    .tabs {
+      display: flex;
+      padding: 4px;
+      margin: 8px 12px 0;
+      background: var(--bg-surface);
+      border-radius: var(--radius);
+      gap: 2px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 8px 14px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      transition: color 0.2s, background 0.2s;
+      user-select: none;
+      letter-spacing: 0.01em;
+    }
+
+    .tab:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .tab.active {
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--border);
+    }
+
+    /* ---- Tab Content ---- */
+    .tab-content {
+      display: none;
+      padding: 20px 16px 16px;
+      min-height: 210px;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.15s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(2px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ---- Default Tab ---- */
+    .hello {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 190px;
+      gap: 10px;
+    }
+
+    .hello-icon {
+      width: 52px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent-subtle);
+      border-radius: 14px;
+      margin-bottom: 4px;
+    }
+
+    .hello-icon svg {
+      width: 26px;
+      height: 26px;
+      color: var(--accent);
+    }
+
+    .hello h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .hello p {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ---- Ignore Console Tab ---- */
+    .add-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .add-row input {
+      flex: 1;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-input);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .add-row input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(196, 146, 106, 0.08);
+    }
+
+    .add-row input::placeholder {
+      color: var(--text-muted);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .add-row button {
+      padding: 9px 16px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: var(--bg-base);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.02em;
+    }
+
+    .add-row button:hover { background: var(--accent-hover); }
+    .add-row button:active { transform: scale(0.97); }
+
+    .filters-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+
+    .filters-list::-webkit-scrollbar { width: 4px; }
+    .filters-list::-webkit-scrollbar-track { background: transparent; }
+    .filters-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    .filter-item:hover {
+      background: var(--bg-elevated);
+    }
+
+    .filter-item span {
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--filter-text);
+      font-weight: 400;
+    }
+
+    .filter-item button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .filter-item button:hover {
+      color: var(--danger);
+      background: rgba(160, 96, 96, 0.1);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 36px 16px;
+      color: var(--text-muted);
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+
+    .filter-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="tabs">
+    <div class="tab active" data-tab="default">Default</div>
+    <div class="tab" data-tab="ignore">Ignore Console</div>
+  </div>
+
+  <div id="tab-default" class="tab-content active">
+    <div class="hello">
+      <div class="hello-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="4 17 10 11 4 5"></polyline>
+          <line x1="12" y1="19" x2="20" y2="19"></line>
+        </svg>
+      </div>
+      <h2>Console Hacker</h2>
+      <p>Filter the noise from your console</p>
+    </div>
+  </div>
+
+  <div id="tab-ignore" class="tab-content">
+    <div class="add-row">
+      <input type="text" id="filter-input" placeholder="e.g. deprecated, warning…">
+      <button id="add-btn">Add</button>
+    </div>
+    <div class="filter-count" id="filter-count"></div>
+    <ul class="filters-list" id="filters-list"></ul>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
