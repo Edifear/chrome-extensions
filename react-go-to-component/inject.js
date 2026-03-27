@@ -1,5 +1,22 @@
-// ── Configuration ──
-const PROJECT_ROOT = '/Users/sergii/Projects/medallion/frontend_service';
+// ── Configuration (overridden by chrome.storage via content.js) ──
+let PROJECT_ROOT = '';
+let SHORTCUT_KEYS = ['Alt'];
+let SHOW_PREVIEW = true;
+let SKIP_DIRS = ['node_modules'];
+
+document.addEventListener('__react-goto-settings', (e) => {
+  const s = e.detail;
+  if (s.projectRoot !== undefined) PROJECT_ROOT = s.projectRoot;
+  if (s.shortcutKeys !== undefined) SHORTCUT_KEYS = s.shortcutKeys;
+  if (s.showPreview !== undefined) {
+    SHOW_PREVIEW = s.showPreview;
+    codePreview.style.display = SHOW_PREVIEW ? '' : 'none';
+  }
+  if (s.skipDirs !== undefined) {
+    const extra = s.skipDirs.split(',').map(d => d.trim()).filter(Boolean);
+    SKIP_DIRS = ['node_modules', ...extra];
+  }
+});
 
 // ── Fiber Walking ──
 
@@ -56,7 +73,7 @@ function getNearestComponent(element) {
   while (current) {
     if (current._debugSource) {
       const src = current._debugSource.fileName;
-      if (!src.includes('node_modules')) {
+      if (!SKIP_DIRS.some(d => src.includes(d))) {
         elementSource = {
           fileName: src.replace(/^\/app\//, '/'),
           line: current._debugSource.lineNumber,
@@ -75,7 +92,7 @@ function getNearestComponent(element) {
   while (current) {
     if (typeof current.type === 'function') {
       const name = current.type.displayName || current.type.name;
-      if (name && current._debugSource && !current._debugSource.fileName.includes('node_modules')) {
+      if (name && current._debugSource && !SKIP_DIRS.some(d => current._debugSource.fileName.includes(d))) {
         componentName = name;
         componentFiber = current;
         break;
@@ -170,15 +187,17 @@ function showOverlay(comp) {
   const shortFile = comp.fileName.split('/').pop();
   label.textContent = `${comp.name}  ·  ${shortFile}:${comp.line}`;
 
-  // Show overlay immediately, fetch source async
-  codePreview.textContent = 'Loading...';
-  codePreview.style.display = 'block';
-
   overlay.style.top = rect.top + 'px';
   overlay.style.left = rect.left + 'px';
   overlay.style.width = rect.width + 'px';
   overlay.style.height = rect.height + 'px';
   overlay.style.display = 'block';
+
+  if (!SHOW_PREVIEW) {
+    codePreview.style.display = 'none';
+    return;
+  }
+  codePreview.style.display = 'block';
 
   // Request original source from disk with hints for precise matching
   const reqId = ++sourceRequestId;
@@ -232,18 +251,44 @@ function hideOverlay() {
 let pickerActive = false;
 let activeComp = null;
 
+function matchesShortcut(e) {
+  const pressed = new Set();
+  if (e.metaKey) pressed.add('Meta');
+  if (e.ctrlKey) pressed.add('Control');
+  if (e.altKey) pressed.add('Alt');
+  if (e.shiftKey) pressed.add('Shift');
+  const nonModifier = !['Meta', 'Control', 'Alt', 'Shift'].includes(e.key);
+  if (nonModifier) pressed.add(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+  if (pressed.size !== SHORTCUT_KEYS.length) return false;
+  return SHORTCUT_KEYS.every(k => pressed.has(k));
+}
+
+function hasShortcutModifiers(e) {
+  // Check if the shortcut's modifier keys are still held
+  for (const k of SHORTCUT_KEYS) {
+    if (k === 'Alt' && !e.altKey) return false;
+    if (k === 'Meta' && !e.metaKey) return false;
+    if (k === 'Control' && !e.ctrlKey) return false;
+    if (k === 'Shift' && !e.shiftKey) return false;
+  }
+  return true;
+}
+
 document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Alt' || pickerActive) return;
+  if (pickerActive || !matchesShortcut(e)) return;
   pickerActive = true;
   document.body.style.cursor = 'crosshair';
   document.documentElement.appendChild(overlay);
 }, true);
 
 document.addEventListener('keyup', (e) => {
-  if (e.key !== 'Alt') return;
-  pickerActive = false;
-  document.body.style.cursor = '';
-  overlay.remove();
+  if (!pickerActive) return;
+  // Deactivate when any of the shortcut keys is released
+  if (SHORTCUT_KEYS.includes(e.key) || SHORTCUT_KEYS.includes(e.key.length === 1 ? e.key.toUpperCase() : e.key)) {
+    pickerActive = false;
+    document.body.style.cursor = '';
+    overlay.remove();
+  }
 }, true);
 
 // When window loses focus while Option is held, clean up
@@ -256,16 +301,17 @@ window.addEventListener('blur', () => {
 
 // ── Hover to highlight ──
 
-let lastTarget = null;
+let lastMoveTime = 0;
 let throttleId = 0;
 
 document.addEventListener('mousemove', (e) => {
   if (!pickerActive) return;
-  if (e.target === lastTarget) return;
-  lastTarget = e.target;
 
-  cancelAnimationFrame(throttleId);
-  throttleId = requestAnimationFrame(() => {
+  const now = Date.now();
+  clearTimeout(throttleId);
+
+  const run = () => {
+    lastMoveTime = Date.now();
     const comp = getNearestComponent(e.target);
     activeComp = comp;
     if (comp) {
@@ -273,13 +319,20 @@ document.addEventListener('mousemove', (e) => {
     } else {
       hideOverlay();
     }
-  });
+  };
+
+  const elapsed = now - lastMoveTime;
+  if (elapsed >= 100) {
+    run();
+  } else {
+    throttleId = setTimeout(run, 100 - elapsed);
+  }
 }, true);
 
 // ── Click to open in VS Code ──
 
 document.addEventListener('click', (e) => {
-  if (!e.altKey || !activeComp) return;
+  if (!pickerActive || !activeComp) return;
 
   e.preventDefault();
   e.stopPropagation();

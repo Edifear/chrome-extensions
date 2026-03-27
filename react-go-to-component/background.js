@@ -5,10 +5,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const comp = msg.component;
     if (!comp) return;
     const filePath = `${msg.projectRoot}${comp.fileName}:${comp.line}:${comp.col}`;
-    chrome.runtime.sendNativeMessage(NATIVE_HOST, { cmd: 'open', file: filePath }, () => {
-      if (chrome.runtime.lastError) {
-        console.error('Native messaging error:', chrome.runtime.lastError.message);
-      }
+    chrome.storage.local.get({ editor: '/usr/local/bin/code', editorArgs: ['--goto'] }, (settings) => {
+      chrome.runtime.sendNativeMessage(NATIVE_HOST, {
+        cmd: 'open',
+        file: filePath,
+        editor: settings.editor,
+        editorArgs: settings.editorArgs
+      }, () => {
+        if (chrome.runtime.lastError) {
+          console.error('Native messaging error:', chrome.runtime.lastError.message);
+        }
+      });
     });
   }
 

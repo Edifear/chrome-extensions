@@ -3,7 +3,14 @@
   "name": "React Go to Component",
   "version": "1.0",
   "description": "Right-click any React element to open its source component in VS Code",
-  "permissions": ["nativeMessaging"],
+  "permissions": ["nativeMessaging", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
   "background": {
     "service_worker": "background.js"
   },

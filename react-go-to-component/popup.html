@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600&family=DM+Mono:wght@400;500&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 340px;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      color: #2d3142;
+      background: #f8f9fb;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 20px 20px 16px;
+      background: linear-gradient(135deg, #e8f7fc 0%, #f0f4ff 100%);
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: #61dafb;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo svg { width: 20px; height: 20px; }
+    .header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #1a1a2e;
+    }
+    .header .tagline {
+      margin-top: 8px;
+      font-size: 11.5px;
+      color: #6b7280;
+      line-height: 1.45;
+    }
+    .header .tagline kbd {
+      display: inline-block;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-bottom-width: 2px;
+      border-radius: 4px;
+      padding: 0 5px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10.5px;
+      color: #374151;
+      vertical-align: 1px;
+    }
+
+    /* ── Settings sections ── */
+    .settings {
+      padding: 4px 0 8px;
+    }
+    .setting {
+      padding: 14px 20px;
+      border-bottom: 1px solid #eef0f4;
+    }
+    .setting:last-child { border-bottom: none; }
+    .setting-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #4b5563;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* ── Path input ── */
+    .path-input {
+      width: 100%;
+      padding: 8px 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #1a1a2e;
+      background: #fff;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .path-input::placeholder {
+      color: #9ca3af;
+    }
+    .path-input:focus {
+      border-color: #61dafb;
+      box-shadow: 0 0 0 3px rgba(97, 218, 251, 0.15);
+    }
+
+    .hint {
+      margin-top: 6px;
+      font-size: 10.5px;
+      color: #9ca3af;
+      line-height: 1.5;
+    }
+    .hint code {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      background: #f3f4f6;
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: #6b7280;
+    }
+
+    /* ── Shortcut recorder ── */
+    .shortcut-display {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 7px 10px;
+      background: #fff;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      min-height: 34px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .shortcut-display:hover {
+      border-color: #9ca3af;
+    }
+    .shortcut-display.recording {
+      border-color: #61dafb;
+      box-shadow: 0 0 0 3px rgba(97, 218, 251, 0.15);
+    }
+    .shortcut-display .placeholder {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+    .shortcut-key {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-bottom-width: 2px;
+      border-radius: 5px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #374151;
+      white-space: nowrap;
+    }
+    .shortcut-plus {
+      font-size: 10px;
+      color: #9ca3af;
+    }
+
+    /* ── Toggle switch ── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .toggle-row .setting-label { margin-bottom: 0; }
+    .toggle {
+      position: relative;
+      width: 38px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: #d1d5db;
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      transition: transform 0.2s;
+    }
+    .toggle input:checked + .toggle-track {
+      background: #61dafb;
+    }
+    .toggle input:checked + .toggle-track::after {
+      transform: translateX(16px);
+    }
+
+  </style>
+  <script defer src="vendor/alpine.min.js"></script>
+</head>
+<body>
+
+  <div x-data="settings()" x-init="load()">
+    <div class="header">
+      <div class="header-row">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="2.5"/>
+            <ellipse cx="12" cy="12" rx="10" ry="4"/>
+            <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)"/>
+            <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)"/>
+          </svg>
+        </div>
+        <h1>React Go to Component</h1>
+      </div>
+      <p class="tagline">Hold <kbd x-text="shortcutLabel">Option</kbd> + hover to inspect. Click to open.</p>
+    </div>
+
+    <div class="settings">
+
+      <div class="setting">
+        <div class="setting-label">Project root</div>
+        <input
+          type="text"
+          class="path-input"
+          x-model.debounce.500ms="projectRoot"
+          placeholder="/Users/you/Projects/repo/frontend_service"
+          spellcheck="false"
+        />
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">Editor path</div>
+        <input
+          type="text"
+          class="path-input"
+          x-model.debounce.500ms="editor"
+          placeholder="/usr/local/bin/code"
+          spellcheck="false"
+        />
+        <div class="hint">VS Code: <code>/usr/local/bin/code</code> &middot; Cursor: <code>/usr/local/bin/cursor</code> &middot; WebStorm: <code>webstorm</code></div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">Skip directories</div>
+        <input
+          type="text"
+          class="path-input"
+          x-model.debounce.500ms="skipDirs"
+          placeholder="node_modules, .next, dist"
+          spellcheck="false"
+        />
+        <div class="hint">Comma-separated. Fibers with these in the path are skipped. <code>node_modules</code> is always skipped.</div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">Activation key</div>
+        <div
+          class="shortcut-display"
+          :class="{ recording }"
+          tabindex="0"
+          @click="startRecording()"
+          @keydown.prevent="recordKey($event)"
+          @blur="cancelRecording()"
+        >
+          <template x-if="recording">
+            <span class="placeholder">Press keys...</span>
+          </template>
+          <template x-if="!recording">
+            <template x-for="(key, i) in shortcutKeys" :key="i">
+              <span>
+                <span class="shortcut-key" x-text="keyLabel(key)"></span>
+                <span class="shortcut-plus" x-show="i < shortcutKeys.length - 1">+</span>
+              </span>
+            </template>
+          </template>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="toggle-row">
+          <div class="setting-label">Show code preview</div>
+          <label class="toggle">
+            <input type="checkbox" x-model="showPreview" />
+            <div class="toggle-track"></div>
+          </label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const KEY_LABELS = { Alt: 'Option', Control: 'Ctrl', Meta: 'Cmd', Shift: 'Shift' };
+    const DEFAULTS = {
+      projectRoot: '',
+      editor: '/usr/local/bin/code',
+      skipDirs: 'dumb_components',
+      shortcutKeys: ['Alt'],
+      showPreview: true
+    };
+
+    function settings() {
+      return {
+        ...DEFAULTS,
+        recording: false,
+
+        load() {
+          chrome.storage.local.get(DEFAULTS, (s) => {
+            this.projectRoot = s.projectRoot;
+            this.editor = s.editor;
+            this.skipDirs = s.skipDirs;
+            this.shortcutKeys = s.shortcutKeys;
+            this.showPreview = s.showPreview;
+          });
+
+          // Watch for changes and auto-save
+          this.$watch('projectRoot', (v) => this.save({ projectRoot: v.trim() }));
+          this.$watch('editor', (v) => this.save({ editor: v.trim() || DEFAULTS.editor }));
+          this.$watch('skipDirs', (v) => this.save({ skipDirs: v.trim() }));
+          this.$watch('showPreview', (v) => this.save({ showPreview: v }));
+        },
+
+        save(partial) {
+          chrome.storage.local.set(partial);
+        },
+
+        // Shortcut recorder
+        startRecording() {
+          this.recording = true;
+        },
+
+        recordKey(e) {
+          if (!this.recording) return;
+          const keys = [];
+          if (e.metaKey) keys.push('Meta');
+          if (e.ctrlKey) keys.push('Control');
+          if (e.altKey) keys.push('Alt');
+          if (e.shiftKey) keys.push('Shift');
+          const nonModifier = !['Meta', 'Control', 'Alt', 'Shift'].includes(e.key);
+          if (nonModifier) keys.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+          if (keys.length === 0) return;
+
+          this.recording = false;
+          this.shortcutKeys = keys;
+          this.save({ shortcutKeys: keys });
+        },
+
+        cancelRecording() {
+          if (!this.recording) return;
+          this.recording = false;
+        },
+
+        keyLabel(k) {
+          return KEY_LABELS[k] || k;
+        },
+
+        get shortcutLabel() {
+          return this.shortcutKeys.map(k => KEY_LABELS[k] || k).join(' + ');
+        }
+      };
+    }
+  </script>
+</body>
+</html>

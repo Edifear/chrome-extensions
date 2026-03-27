@@ -43,9 +43,11 @@ cmd = msg.get('cmd', 'open')
 
 if cmd == 'open':
     file_path = msg.get('file')
+    editor = msg.get('editor', '/usr/local/bin/code')
+    editor_args = msg.get('editorArgs', ['--goto'])
     if file_path:
         try:
-            subprocess.Popen(['/usr/local/bin/code', '--goto', file_path])
+            subprocess.Popen([editor] + editor_args + [file_path])
             send_message({'success': True})
         except Exception as e:
             send_message({'success': False, 'error': str(e)})
