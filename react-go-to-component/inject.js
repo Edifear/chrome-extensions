@@ -37,11 +37,33 @@ function getElementHints(element) {
   // Short textContent as fallback
   const text = element.textContent?.trim();
   if (text && text.length < 40 && text !== directText) hints.push(text);
+  // Static text fragments: extract parts that aren't dynamic (split on numbers, dates, etc.)
+  // e.g. "Last Updated: 03/30/2026 at 6:00:54 PM" → "Last Updated:"
+  const textToSplit = directText || text || '';
+  if (textToSplit) {
+    const fragments = textToSplit.split(/[\d]+[\d/:\s.,aApPmM]*/).map(f => f.trim()).filter(f => f.length >= 3);
+    for (const frag of fragments) {
+      if (!hints.includes(frag)) hints.push(frag);
+    }
+  }
   // Tag name
   if (element.tagName) hints.push(element.tagName.toLowerCase());
-  // Class names (individual)
+  // Class names (individual) + extract CSS module semantic names
   if (element.className && typeof element.className === 'string') {
-    element.className.split(/\s+/).filter(Boolean).forEach(c => hints.push(c));
+    element.className.split(/\s+/).filter(Boolean).forEach(c => {
+      hints.push(c);
+      // CSS modules produce names like "_metadata_1o22u_439" or "prefix_myClass_hash"
+      // Extract the semantic part (e.g. "metadata", "myClass")
+      const parts = c.split('_').filter(Boolean);
+      if (parts.length >= 2) {
+        // Skip parts that look like hashes (short alphanumeric) and take semantic parts
+        for (const part of parts) {
+          if (part.length >= 3 && !/^[a-z0-9]{3,6}$/.test(part) && !hints.includes(part)) {
+            hints.push(part);
+          }
+        }
+      }
+    });
   }
   // Key attributes
   for (const attr of ['id', 'name', 'href', 'src', 'alt', 'placeholder', 'aria-label', 'data-testid']) {
