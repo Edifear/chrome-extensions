@@ -6,18 +6,54 @@ const SEARCH_QUERY = `
     search(query: $q, type: ISSUE, first: 50) {
       issueCount
       nodes {
-        ... on Issue { number isReadByViewer }
-        ... on PullRequest { number isReadByViewer }
+        ... on Issue {
+          __typename number title url isReadByViewer
+        }
+        ... on PullRequest {
+          __typename number title url isReadByViewer
+          reviewDecision
+        }
       }
     }
   }
 `;
 
+const APP_VERSION = 2;
+
 chrome.runtime.onInstalled.addListener(async () => {
+  const { appVersion } = await chrome.storage.local.get('appVersion');
+  if (appVersion != null && appVersion !== APP_VERSION) {
+    await chrome.storage.local.set({ appVersion: APP_VERSION });
+    chrome.runtime.reload();
+    return;
+  }
+  await chrome.storage.local.set({ appVersion: APP_VERSION });
   await loadEnvToken();
+  await restoreItemsFromSync();
   chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1 });
   syncAll();
 });
+
+async function restoreItemsFromSync() {
+  const { items } = await chrome.storage.local.get('items');
+  if (items && items.length > 0) return;
+  const { savedItems } = await chrome.storage.sync.get('savedItems');
+  if (savedItems && savedItems.length > 0) {
+    const restored = savedItems.map((s) => ({
+      ...s,
+      totalCount: null,
+      unreadCount: 0,
+      lastChecked: null,
+      lastError: null,
+    }));
+    await chrome.storage.local.set({ items: restored });
+  }
+}
+
+function saveItemsToSync(items) {
+  const slim = items.map(({ id, query, title }) => ({ id, query, title }));
+  chrome.storage.sync.set({ savedItems: slim });
+}
 
 async function loadEnvToken() {
   try {
@@ -71,6 +107,7 @@ async function addItem(query, title) {
     lastError: null,
   });
   await chrome.storage.local.set({ items });
+  saveItemsToSync(items);
   return { ok: true };
 }
 
@@ -78,6 +115,7 @@ async function removeItem(id) {
   const { items = [] } = await chrome.storage.local.get('items');
   const updated = items.filter((i) => i.id !== id);
   await chrome.storage.local.set({ items: updated });
+  saveItemsToSync(updated);
   updateBadge(updated);
   return { ok: true };
 }
@@ -113,6 +151,7 @@ async function syncAll() {
         ...item,
         totalCount: itemTotalCount,
         unreadCount,
+        nodes: result.nodes,
         lastChecked: new Date().toISOString(),
         lastError: null,
       };
@@ -129,7 +168,8 @@ async function syncAll() {
   const changed = updated.some((u, i) =>
     u.unreadCount !== items[i].unreadCount ||
     u.totalCount !== items[i].totalCount ||
-    u.lastError !== items[i].lastError
+    u.lastError !== items[i].lastError ||
+    JSON.stringify(u.nodes) !== JSON.stringify(items[i].nodes)
   );
   if (changed) {
     await chrome.storage.local.set({ items: updated });

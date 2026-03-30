@@ -149,12 +149,16 @@
     }
 
     .add-row {
-      display: flex;
+      display: none;
       flex-direction: column;
       gap: 6px;
       padding: 10px 16px;
       border-bottom: 1px solid var(--border-subtle);
       flex-shrink: 0;
+    }
+
+    .add-row.visible {
+      display: flex;
     }
 
     .add-row-inputs {
@@ -193,7 +197,7 @@
 
     .item {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
       padding: 9px 16px 9px 12px;
       border-left: 3px solid var(--text-muted);
@@ -207,20 +211,20 @@
 
     .item.has-unread .item-border-glow {
       position: absolute;
-      left: 0; top: 0; bottom: 0;
+      left: -3px; top: 0; bottom: 0;
       width: 3px;
-      background: var(--accent-red);
       animation: pulse-glow 2s ease-in-out infinite;
     }
 
     @keyframes pulse-glow {
       0%, 100% { box-shadow: 0 0 4px var(--accent-red-dim); }
-      50% { box-shadow: 0 0 10px var(--accent-red-glow); }
+      50% { box-shadow: 0 0 8px var(--accent-red-glow); }
     }
 
     .item-indicator {
       width: 7px;
       height: 7px;
+      margin-top: 5px;
       border-radius: 50%;
       flex-shrink: 0;
       background: var(--text-muted);
@@ -278,13 +282,83 @@
       max-width: 200px;
     }
 
-    .item-actions {
+    .item-details {
+      display: none;
+      flex-direction: column;
+      gap: 1px;
+      margin-top: 4px;
+      padding-top: 5px;
+      border-top: 1px solid var(--border-subtle);
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .item.expanded .item-details { display: flex; }
+
+    .item-body { cursor: pointer; }
+
+    .pr-row {
       display: flex;
       align-items: center;
-      gap: 2px;
+      gap: 6px;
+      padding: 3px 0;
+      font-size: 11px;
+    }
+
+    .pr-status {
       flex-shrink: 0;
-      opacity: 0.4;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+    }
+
+    .pr-status.approved { background: var(--accent-green); color: #fff; }
+    .pr-status.changes { background: var(--accent-red); color: #fff; }
+    .pr-status.pending { background: var(--text-muted); color: var(--bg-base); }
+    .pr-status.unread { box-shadow: 0 0 0 2px var(--accent-red-dim); }
+
+    .pr-row {
+      border-left: 2px solid transparent;
+      padding-left: 6px;
+    }
+
+    .pr-unread { border-left-color: var(--accent-blue); }
+    .pr-unread .pr-title { color: var(--text-primary); font-weight: 500; }
+
+    .pr-title {
+      flex: 1;
+      min-width: 0;
+      color: var(--text-secondary);
+    }
+
+    .pr-title a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .pr-title a:hover { color: var(--accent-blue); }
+
+    .pr-number {
+      flex-shrink: 0;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    .item-actions {
+      display: flex;
+      align-items: flex-start;
+      flex-shrink: 0;
+      opacity: 0;
       transition: opacity var(--transition);
+      position: absolute;
+      right: 8px;
+      top: 6px;
     }
 
     .item:hover .item-actions { opacity: 1; }
@@ -386,6 +460,7 @@
           <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"/>
         </svg>
       </button>
+      <button class="btn btn-sync" id="btnAddNew" title="Add new query">+ Add</button>
       <button class="btn btn-sync" id="btnSync">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M1.5 8a6.5 6.5 0 0111.25-4.5M14.5 8a6.5 6.5 0 01-11.25 4.5"/>
