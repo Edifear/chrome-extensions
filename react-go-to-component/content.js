@@ -47,8 +47,10 @@ document.addEventListener('__react-goto-read-source', (e) => {
     context: e.detail.context,
     hints: e.detail.hints || []
   }, (resp) => {
+    const result = resp || { success: false, error: 'No response' };
+    if (e.detail.reqId !== undefined) result.reqId = e.detail.reqId;
     document.dispatchEvent(new CustomEvent('__react-goto-source-result', {
-      detail: resp || { success: false, error: 'No response' }
+      detail: result
     }));
   });
 });

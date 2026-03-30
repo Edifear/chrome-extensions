@@ -110,6 +110,30 @@ function getNearestComponent(element) {
     col: componentFiber._debugSource.columnNumber
   };
 
+  // Collect alternates: other unique source locations in the fiber chain
+  const alternates = [];
+  const primaryKey = `${source.fileName}:${source.line}`;
+  const seenKeys = new Set([primaryKey]);
+  current = fiber;
+  while (current) {
+    if (typeof current.type === 'function' && current._debugSource) {
+      const src = current._debugSource.fileName;
+      if (!SKIP_DIRS.some(d => src.includes(d))) {
+        const name = current.type.displayName || current.type.name;
+        if (name) {
+          const fn = src.replace(/^\/app\//, '/');
+          const ln = current._debugSource.lineNumber;
+          const key = `${fn}:${ln}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            alternates.push({ name, fileName: fn, line: ln, col: current._debugSource.columnNumber });
+          }
+        }
+      }
+    }
+    current = current.return;
+  }
+
   return {
     name: componentName,
     fileName: source.fileName,
@@ -117,7 +141,8 @@ function getNearestComponent(element) {
     col: source.col,
     fiber: componentFiber || fiber,
     hoveredElement: element,
-    hints
+    hints,
+    alternates
   };
 }
 
@@ -142,44 +167,93 @@ style.textContent = `
   ._react-goto-tooltip {
     position: fixed;
     position-anchor: ${ANCHOR_NAME};
-    position-area: top left;
-    position-try-fallbacks: flip-block;
-    pointer-events: none;
+    position-area: bottom center;
+    position-try-fallbacks: top center;
+    pointer-events: auto;
+    cursor: crosshair;
     z-index: 2147483647;
-    max-width: 500px;
+    max-width: 600px;
     border-radius: 6px;
     overflow: hidden;
-    margin-bottom: 4px;
+    margin-top: 4px;
   }
   ._react-goto-label {
-    padding: 4px 8px;
+    padding: 6px 10px;
     background: rgba(97, 218, 251, 0.95);
     color: #1a1a2e;
-    font: bold 11px/16px -apple-system, sans-serif;
+    font: bold 13px/18px -apple-system, sans-serif;
     white-space: nowrap;
   }
   ._react-goto-code {
     margin: 0;
-    padding: 6px 8px;
+    padding: 8px 10px;
     background: rgba(30, 30, 46, 0.95);
     color: #cdd6f4;
-    font: 10px/14px 'SF Mono', 'JetBrains Mono', monospace;
+    font: 12px/18px 'SF Mono', 'JetBrains Mono', monospace;
     white-space: pre;
     overflow: hidden;
-    max-height: 112px;
   }
   ._react-goto-code-line--target {
     background: rgba(97, 218, 251, 0.2);
-    margin: 0 -8px;
-    padding: 0 8px;
+    margin: 0 -10px;
+    padding: 0 10px;
   }
   ._react-goto-code-num {
     color: #585b70;
     user-select: none;
     display: inline-block;
-    width: 3ch;
+    width: 4ch;
     text-align: right;
     margin-right: 1ch;
+  }
+  ._react-goto-alternates {
+    background: rgba(30, 30, 46, 0.95);
+    pointer-events: auto;
+    cursor: default;
+  }
+  ._react-goto-alternates:empty {
+    display: none;
+  }
+  ._react-goto-alt-header {
+    display: flex;
+    align-items: center;
+    padding: 4px 10px;
+    cursor: pointer;
+    border-top: 1px solid rgba(88, 91, 112, 0.3);
+  }
+  ._react-goto-alt-header:hover {
+    background: rgba(88, 91, 112, 0.15);
+  }
+  ._react-goto-alt-label {
+    flex: 1;
+    font: 12px/18px -apple-system, sans-serif;
+    color: #a6adc8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  ._react-goto-alt-go {
+    background: rgba(97, 218, 251, 0.25);
+    border: none;
+    color: #61dafb;
+    font: bold 11px/1 -apple-system, sans-serif;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 6px;
+    flex-shrink: 0;
+  }
+  ._react-goto-alt-go:hover {
+    background: rgba(97, 218, 251, 0.5);
+  }
+  ._react-goto-alt-code {
+    padding: 4px 10px 6px;
+    font: 12px/18px 'SF Mono', 'JetBrains Mono', monospace;
+    color: #cdd6f4;
+    white-space: pre;
+    overflow: hidden;
+    background: rgba(24, 24, 37, 0.5);
+    border-top: 1px solid rgba(88, 91, 112, 0.15);
   }
 `;
 
@@ -195,10 +269,29 @@ label.className = '_react-goto-label';
 const codePreview = document.createElement('pre');
 codePreview.className = '_react-goto-code';
 
+const alternatesContainer = document.createElement('div');
+alternatesContainer.className = '_react-goto-alternates';
+
 tooltip.appendChild(label);
 tooltip.appendChild(codePreview);
+tooltip.appendChild(alternatesContainer);
 
-let sourceRequestId = 0;
+let nextReqId = 0;
+let mainReqId = 0;
+
+function readSource(file, line, context, hints, callback) {
+  const reqId = ++nextReqId;
+  const handler = (e) => {
+    if (e.detail?.reqId !== reqId) return;
+    document.removeEventListener('__react-goto-source-result', handler);
+    callback(e.detail);
+  };
+  document.addEventListener('__react-goto-source-result', handler);
+  document.dispatchEvent(new CustomEvent('__react-goto-read-source', {
+    detail: { file, line, context, hints: hints || [], reqId }
+  }));
+  return reqId;
+}
 
 function setAnchor(element) {
   if (prevAnchor) prevAnchor.style.anchorName = '';
@@ -221,50 +314,134 @@ function showOverlay(comp) {
 
   highlight.style.display = '';
   tooltip.style.display = '';
+  alternatesContainer.innerHTML = '';
 
   if (!SHOW_PREVIEW) {
     codePreview.style.display = 'none';
+    alternatesContainer.style.display = 'none';
     return;
   }
   codePreview.style.display = '';
+  alternatesContainer.style.display = '';
 
-  // Request original source from disk with hints for precise matching
-  const reqId = ++sourceRequestId;
-  document.dispatchEvent(new CustomEvent('__react-goto-read-source', {
-    detail: {
-      file: `${PROJECT_ROOT}${comp.fileName}`,
-      line: comp.line,
-      context: 4,
-      hints: comp.hints || []
+  // Request target line + 1 above and 1 below
+  const reqId = readSource(
+    `${PROJECT_ROOT}${comp.fileName}`, comp.line, 1, comp.hints,
+    (resp) => {
+      if (reqId !== mainReqId) return;
+      if (!resp?.success) {
+        codePreview.textContent = resp?.error || 'Failed to read source';
+        return;
+      }
+
+      comp.matchedLine = resp.targetLine;
+      label.textContent = `${comp.name}  ·  ${shortFile}:${resp.targetLine}`;
+
+      // Strip common leading whitespace
+      const minIndent = resp.lines.reduce((min, l) => {
+        if (!l.text) return min;
+        const m = l.text.match(/^\s*/);
+        return Math.min(min, m[0].length);
+      }, Infinity);
+
+      codePreview.innerHTML = '';
+      resp.lines.forEach(l => {
+        const line = document.createElement('div');
+        if (l.num === resp.targetLine) line.className = '_react-goto-code-line--target';
+        const numSpan = document.createElement('span');
+        numSpan.className = '_react-goto-code-num';
+        numSpan.textContent = l.num;
+        line.appendChild(numSpan);
+        line.appendChild(document.createTextNode(l.text.slice(minIndent)));
+        codePreview.appendChild(line);
+      });
     }
-  }));
+  );
+  mainReqId = reqId;
 
-  // Listen for response (one-shot)
-  const handler = (e) => {
-    document.removeEventListener('__react-goto-source-result', handler);
-    if (reqId !== sourceRequestId) return;
-    const resp = e.detail;
-    if (!resp?.success) {
-      codePreview.textContent = resp?.error || 'Failed to read source';
-      return;
-    }
+  // Render alternates
+  (comp.alternates || []).slice(0, 5).forEach(alt => {
+    const altShortFile = alt.fileName.split('/').pop();
 
-    comp.matchedLine = resp.targetLine;
-    label.textContent = `${comp.name}  ·  ${shortFile}:${resp.targetLine}`;
+    const header = document.createElement('div');
+    header.className = '_react-goto-alt-header';
 
-    codePreview.innerHTML = '';
-    resp.lines.forEach(l => {
-      const line = document.createElement('div');
-      if (l.num === resp.targetLine) line.className = '_react-goto-code-line--target';
-      const numSpan = document.createElement('span');
-      numSpan.className = '_react-goto-code-num';
-      numSpan.textContent = l.num;
-      line.appendChild(numSpan);
-      line.appendChild(document.createTextNode(l.text));
-      codePreview.appendChild(line);
+    const altLabel = document.createElement('span');
+    altLabel.className = '_react-goto-alt-label';
+    altLabel.textContent = `▸ ${alt.name}  ·  ${altShortFile}:${alt.line}`;
+
+    const goBtn = document.createElement('button');
+    goBtn.className = '_react-goto-alt-go';
+    goBtn.textContent = '→';
+
+    header.appendChild(altLabel);
+    header.appendChild(goBtn);
+    alternatesContainer.appendChild(header);
+
+    const codeArea = document.createElement('div');
+    codeArea.className = '_react-goto-alt-code';
+    codeArea.style.display = 'none';
+    alternatesContainer.appendChild(codeArea);
+
+    let loaded = false;
+
+    header.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const expanding = codeArea.style.display === 'none';
+      codeArea.style.display = expanding ? '' : 'none';
+      altLabel.textContent = `${expanding ? '▾' : '▸'} ${alt.name}  ·  ${altShortFile}:${alt.matchedLine || alt.line}`;
+
+      if (expanding && !loaded) {
+        loaded = true;
+        codeArea.textContent = '…';
+        readSource(
+          `${PROJECT_ROOT}${alt.fileName}`, alt.line, 1, [],
+          (resp) => {
+            if (!resp?.success) {
+              codeArea.textContent = resp?.error || 'Failed';
+              return;
+            }
+            alt.matchedLine = resp.targetLine;
+            altLabel.textContent = `▾ ${alt.name}  ·  ${altShortFile}:${resp.targetLine}`;
+            const minIndent = resp.lines.reduce((min, l) => {
+              if (!l.text) return min;
+              return Math.min(min, l.text.match(/^\s*/)[0].length);
+            }, Infinity);
+            codeArea.textContent = '';
+            resp.lines.forEach(l => {
+              const line = document.createElement('div');
+              if (l.num === resp.targetLine) line.className = '_react-goto-code-line--target';
+              const numSpan = document.createElement('span');
+              numSpan.className = '_react-goto-code-num';
+              numSpan.textContent = l.num;
+              line.appendChild(numSpan);
+              line.appendChild(document.createTextNode(l.text.slice(minIndent)));
+              codeArea.appendChild(line);
+            });
+          }
+        );
+      }
     });
-  };
-  document.addEventListener('__react-goto-source-result', handler);
+
+    const goToAlt = () => {
+      document.dispatchEvent(new CustomEvent('__react-goto-component', {
+        detail: {
+          component: { name: alt.name, fileName: alt.fileName, line: alt.matchedLine || alt.line, col: alt.col },
+          projectRoot: PROJECT_ROOT
+        }
+      }));
+    };
+
+    goBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      goToAlt();
+    });
+
+    codeArea.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      goToAlt();
+    });
+  });
 }
 
 function hideOverlay() {
@@ -277,6 +454,28 @@ function hideOverlay() {
 
 let pickerActive = false;
 let activeComp = null;
+let tooltipPinned = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+
+document.addEventListener('mousemove', (e) => {
+  lastMouseX = e.clientX;
+  lastMouseY = e.clientY;
+}, true);
+
+function isMouseOverTooltip() {
+  const el = document.elementFromPoint(lastMouseX, lastMouseY);
+  return el && tooltip.contains(el);
+}
+
+function unpinTooltip() {
+  if (!tooltipPinned) return;
+  tooltipPinned = false;
+  activeComp = null;
+  clearAnchor();
+  tooltip.remove();
+  style.remove();
+}
 
 function matchesShortcut(e) {
   const pressed = new Set();
@@ -302,6 +501,8 @@ function hasShortcutModifiers(e) {
 }
 
 document.addEventListener('keydown', (e) => {
+  if (tooltipPinned && e.key === 'Escape') { unpinTooltip(); return; }
+  if (tooltipPinned) unpinTooltip();
   if (pickerActive || !matchesShortcut(e)) return;
   pickerActive = true;
   document.body.style.cursor = 'crosshair';
@@ -314,30 +515,56 @@ document.addEventListener('keyup', (e) => {
   if (!pickerActive) return;
   // Deactivate when any of the shortcut keys is released
   if (SHORTCUT_KEYS.includes(e.key) || SHORTCUT_KEYS.includes(e.key.length === 1 ? e.key.toUpperCase() : e.key)) {
+    // Check BEFORE any DOM changes (clearAnchor would move the tooltip)
+    const shouldPin = activeComp && isMouseOverTooltip();
+
     pickerActive = false;
     document.body.style.cursor = '';
-    clearAnchor();
+    clearTimeout(switchTimeout);
+    clearTimeout(throttleId);
     highlight.remove();
-    tooltip.remove();
-    style.remove();
+
+    if (shouldPin) {
+      // Keep anchor + tooltip in place, just remove highlight
+      tooltipPinned = true;
+    } else {
+      activeComp = null;
+      clearAnchor();
+      tooltip.remove();
+      style.remove();
+    }
   }
 }, true);
 
 // When window loses focus while Option is held, clean up
 window.addEventListener('blur', () => {
+  if (tooltipPinned) { unpinTooltip(); return; }
   if (!pickerActive) return;
   pickerActive = false;
   document.body.style.cursor = '';
-  overlay.remove();
+  clearTimeout(switchTimeout);
+  clearTimeout(throttleId);
+  clearAnchor();
+  highlight.remove();
+  tooltip.remove();
+  style.remove();
 });
 
 // ── Hover to highlight ──
 
 let lastMoveTime = 0;
 let throttleId = 0;
+let switchTimeout = 0;
 
 document.addEventListener('mousemove', (e) => {
   if (!pickerActive) return;
+
+  // Mouse over our overlay — cancel any pending switch, keep current
+  if (isMouseOverTooltip() || e.target === highlight) {
+    clearTimeout(switchTimeout);
+    clearTimeout(throttleId);
+    return;
+  }
 
   const now = Date.now();
   clearTimeout(throttleId);
@@ -345,12 +572,28 @@ document.addEventListener('mousemove', (e) => {
   const run = () => {
     lastMoveTime = Date.now();
     const comp = getNearestComponent(e.target);
-    activeComp = comp;
-    if (comp) {
-      showOverlay(comp);
-    } else {
-      hideOverlay();
+
+    // No active overlay — show immediately
+    if (!activeComp) {
+      clearTimeout(switchTimeout);
+      activeComp = comp;
+      if (comp) showOverlay(comp);
+      return;
     }
+
+    // Same element — keep current
+    if (comp && comp.hoveredElement === activeComp.hoveredElement) {
+      clearTimeout(switchTimeout);
+      return;
+    }
+
+    // Different element — grace period before switching
+    clearTimeout(switchTimeout);
+    switchTimeout = setTimeout(() => {
+      activeComp = comp;
+      if (comp) showOverlay(comp);
+      else hideOverlay();
+    }, 300);
   };
 
   const elapsed = now - lastMoveTime;
@@ -364,13 +607,29 @@ document.addEventListener('mousemove', (e) => {
 // ── Click to open in VS Code ──
 
 document.addEventListener('click', (e) => {
+  // Pinned tooltip: click outside dismisses, click on label/code opens file
+  if (tooltipPinned) {
+    if (alternatesContainer.contains(e.target)) return;
+    if (tooltip.contains(e.target) && activeComp) {
+      e.preventDefault();
+      e.stopPropagation();
+      const { fiber, hints, hoveredElement, alternates, ...compData } = activeComp;
+      if (activeComp.matchedLine) compData.line = activeComp.matchedLine;
+      document.dispatchEvent(new CustomEvent('__react-goto-component', {
+        detail: { component: compData, projectRoot: PROJECT_ROOT }
+      }));
+    }
+    unpinTooltip();
+    return;
+  }
+
   if (!pickerActive || !activeComp) return;
+  if (alternatesContainer.contains(e.target)) return;
 
   e.preventDefault();
   e.stopPropagation();
 
-  const { fiber, hints, hoveredElement, ...compData } = activeComp;
-  // Use the matched line from source search if available
+  const { fiber, hints, hoveredElement, alternates, ...compData } = activeComp;
   if (activeComp.matchedLine) compData.line = activeComp.matchedLine;
 
   document.dispatchEvent(new CustomEvent('__react-goto-component', {
