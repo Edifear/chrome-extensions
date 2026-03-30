@@ -288,7 +288,7 @@ function readSource(file, line, context, hints, callback) {
   };
   document.addEventListener('__react-goto-source-result', handler);
   document.dispatchEvent(new CustomEvent('__react-goto-read-source', {
-    detail: { file, line, context, hints: hints || [], reqId }
+    detail: { file, line, context, hints: hints || [], reqId, origin: location.origin, projectRoot: PROJECT_ROOT }
   }));
   return reqId;
 }
@@ -395,7 +395,7 @@ function showOverlay(comp) {
         loaded = true;
         codeArea.textContent = '…';
         readSource(
-          `${PROJECT_ROOT}${alt.fileName}`, alt.line, 1, [],
+          `${PROJECT_ROOT}${alt.fileName}`, alt.line, 1, [alt.name],
           (resp) => {
             if (!resp?.success) {
               codeArea.textContent = resp?.error || 'Failed';

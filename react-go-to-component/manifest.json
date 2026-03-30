@@ -4,6 +4,7 @@
   "version": "1.0",
   "description": "Right-click any React element to open its source component in VS Code",
   "permissions": ["nativeMessaging", "storage"],
+  "host_permissions": ["http://localhost:*/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

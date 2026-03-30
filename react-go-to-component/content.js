@@ -45,7 +45,9 @@ document.addEventListener('__react-goto-read-source', (e) => {
     file: e.detail.file,
     line: e.detail.line,
     context: e.detail.context,
-    hints: e.detail.hints || []
+    hints: e.detail.hints || [],
+    origin: e.detail.origin,
+    projectRoot: e.detail.projectRoot
   }, (resp) => {
     const result = resp || { success: false, error: 'No response' };
     if (e.detail.reqId !== undefined) result.reqId = e.detail.reqId;

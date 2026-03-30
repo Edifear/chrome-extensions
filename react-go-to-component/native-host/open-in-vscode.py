@@ -63,12 +63,17 @@ elif cmd == 'read':
         with open(file_path, 'r') as f:
             all_lines = f.readlines()
 
+        # Clamp fallback to file bounds
+        total = len(all_lines)
+        fallback_line = max(1, min(fallback_line, total))
+
         # Find best matching line using hints
         target_line = find_best_line(
             [l.rstrip('\n') for l in all_lines],
             hints,
             fallback_line
         )
+        target_line = max(1, min(target_line, total))
 
         start = max(0, target_line - context - 1)
         end = min(len(all_lines), target_line + context)
