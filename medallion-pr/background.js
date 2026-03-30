@@ -18,7 +18,7 @@ const SEARCH_QUERY = `
   }
 `;
 
-const APP_VERSION = 2;
+const APP_VERSION = '1.0.0';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { appVersion } = await chrome.storage.local.get('appVersion');

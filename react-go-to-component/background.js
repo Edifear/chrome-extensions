@@ -1,5 +1,5 @@
 const NATIVE_HOST = 'com.react_goto_component.open_in_vscode';
-const APP_VERSION = 1;
+const APP_VERSION = '1.0';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { appVersion } = await chrome.storage.local.get('appVersion');
