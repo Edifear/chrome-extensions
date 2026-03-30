@@ -1,4 +1,15 @@
 const NATIVE_HOST = 'com.react_goto_component.open_in_vscode';
+const APP_VERSION = 1;
+
+chrome.runtime.onInstalled.addListener(async () => {
+  const { appVersion } = await chrome.storage.local.get('appVersion');
+  if (appVersion != null && appVersion !== APP_VERSION) {
+    await chrome.storage.local.set({ appVersion: APP_VERSION });
+    chrome.runtime.reload();
+    return;
+  }
+  await chrome.storage.local.set({ appVersion: APP_VERSION });
+});
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'OPEN_COMPONENT') {
