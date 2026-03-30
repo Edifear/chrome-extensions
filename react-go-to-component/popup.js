@@ -5,7 +5,7 @@ const KEY_LABELS = { Alt: 'Option', Control: 'Ctrl', Meta: 'Cmd', Shift: 'Shift'
 const DEFAULTS = {
   projectRoot: '',
   editor: '/usr/local/bin/code',
-  skipDirs: 'dumb_components',
+  skipDirs: 'dumb_components, src/components/',
   shortcutKeys: ['Alt'],
   showPreview: true
 };

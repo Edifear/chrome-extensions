@@ -121,83 +121,112 @@ function getNearestComponent(element) {
   };
 }
 
-function getComponentBounds(comp) {
-  // Use the actual hovered element's bounds — more reliable than fiber tree
-  // walking, especially with wrapper-heavy components (Affix, Portal, etc.)
-  if (comp.hoveredElement) return comp.hoveredElement.getBoundingClientRect();
-  return null;
-}
+// ── Overlay (CSS Anchor Positioning) ──
 
-// ── Overlay ──
+const ANCHOR_NAME = '--react-goto-target';
+let prevAnchor = null;
 
-const overlay = document.createElement('div');
-overlay.style.cssText = `
-  position: fixed;
-  pointer-events: none;
-  z-index: 2147483647;
-  background: rgba(97, 218, 251, 0.15);
-  border: 2px solid rgba(97, 218, 251, 0.8);
-  border-radius: 4px;
-  display: none;
-  transition: top 0.05s, left 0.05s, width 0.05s, height 0.05s;
+// Inject styles for anchor positioning
+const style = document.createElement('style');
+style.textContent = `
+  ._react-goto-highlight {
+    position: fixed;
+    position-anchor: ${ANCHOR_NAME};
+    inset: anchor(top) anchor(right) anchor(bottom) anchor(left);
+    pointer-events: none;
+    z-index: 2147483647;
+    background: rgba(97, 218, 251, 0.15);
+    border: 2px solid rgba(97, 218, 251, 0.8);
+    border-radius: 4px;
+  }
+  ._react-goto-tooltip {
+    position: fixed;
+    position-anchor: ${ANCHOR_NAME};
+    position-area: top left;
+    position-try-fallbacks: flip-block;
+    pointer-events: none;
+    z-index: 2147483647;
+    max-width: 500px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 4px;
+  }
+  ._react-goto-label {
+    padding: 4px 8px;
+    background: rgba(97, 218, 251, 0.95);
+    color: #1a1a2e;
+    font: bold 11px/16px -apple-system, sans-serif;
+    white-space: nowrap;
+  }
+  ._react-goto-code {
+    margin: 0;
+    padding: 6px 8px;
+    background: rgba(30, 30, 46, 0.95);
+    color: #cdd6f4;
+    font: 10px/14px 'SF Mono', 'JetBrains Mono', monospace;
+    white-space: pre;
+    overflow: hidden;
+    max-height: 112px;
+  }
+  ._react-goto-code-line--target {
+    background: rgba(97, 218, 251, 0.2);
+    margin: 0 -8px;
+    padding: 0 8px;
+  }
+  ._react-goto-code-num {
+    color: #585b70;
+    user-select: none;
+    display: inline-block;
+    width: 3ch;
+    text-align: right;
+    margin-right: 1ch;
+  }
 `;
+
+const highlight = document.createElement('div');
+highlight.className = '_react-goto-highlight';
 
 const tooltip = document.createElement('div');
-tooltip.style.cssText = `
-  position: absolute;
-  bottom: 100%;
-  left: -2px;
-  margin-bottom: 0;
-  max-width: 500px;
-  border-radius: 6px 6px 0 0;
-  overflow: hidden;
-`;
+tooltip.className = '_react-goto-tooltip';
 
 const label = document.createElement('div');
-label.style.cssText = `
-  padding: 4px 8px;
-  background: rgba(97, 218, 251, 0.95);
-  color: #1a1a2e;
-  font: bold 11px/16px -apple-system, sans-serif;
-  white-space: nowrap;
-`;
+label.className = '_react-goto-label';
 
 const codePreview = document.createElement('pre');
-codePreview.style.cssText = `
-  margin: 0;
-  padding: 6px 8px;
-  background: rgba(30, 30, 46, 0.95);
-  color: #cdd6f4;
-  font: 10px/14px 'SF Mono', 'JetBrains Mono', monospace;
-  white-space: pre;
-  overflow: hidden;
-  max-height: 112px;
-`;
+codePreview.className = '_react-goto-code';
 
 tooltip.appendChild(label);
 tooltip.appendChild(codePreview);
-overlay.appendChild(tooltip);
 
 let sourceRequestId = 0;
 
+function setAnchor(element) {
+  if (prevAnchor) prevAnchor.style.anchorName = '';
+  element.style.anchorName = ANCHOR_NAME;
+  prevAnchor = element;
+}
+
+function clearAnchor() {
+  if (prevAnchor) prevAnchor.style.anchorName = '';
+  prevAnchor = null;
+}
+
 function showOverlay(comp) {
-  const rect = getComponentBounds(comp);
-  if (!rect) { hideOverlay(); return; }
+  if (!comp.hoveredElement) { hideOverlay(); return; }
+
+  setAnchor(comp.hoveredElement);
 
   const shortFile = comp.fileName.split('/').pop();
   label.textContent = `${comp.name}  ·  ${shortFile}:${comp.line}`;
 
-  overlay.style.top = rect.top + 'px';
-  overlay.style.left = rect.left + 'px';
-  overlay.style.width = rect.width + 'px';
-  overlay.style.height = rect.height + 'px';
-  overlay.style.display = 'block';
+  highlight.style.display = '';
+  tooltip.style.display = '';
 
   if (!SHOW_PREVIEW) {
     codePreview.style.display = 'none';
     return;
   }
-  codePreview.style.display = 'block';
+  codePreview.style.display = '';
 
   // Request original source from disk with hints for precise matching
   const reqId = ++sourceRequestId;
@@ -213,26 +242,22 @@ function showOverlay(comp) {
   // Listen for response (one-shot)
   const handler = (e) => {
     document.removeEventListener('__react-goto-source-result', handler);
-    if (reqId !== sourceRequestId) return; // stale response
+    if (reqId !== sourceRequestId) return;
     const resp = e.detail;
     if (!resp?.success) {
       codePreview.textContent = resp?.error || 'Failed to read source';
       return;
     }
 
-    // Update the matched line for label and click-to-open
     comp.matchedLine = resp.targetLine;
     label.textContent = `${comp.name}  ·  ${shortFile}:${resp.targetLine}`;
 
     codePreview.innerHTML = '';
     resp.lines.forEach(l => {
       const line = document.createElement('div');
-      const isTarget = l.num === resp.targetLine;
-      line.style.cssText = isTarget
-        ? 'background: rgba(97, 218, 251, 0.2); margin: 0 -8px; padding: 0 8px;'
-        : '';
+      if (l.num === resp.targetLine) line.className = '_react-goto-code-line--target';
       const numSpan = document.createElement('span');
-      numSpan.style.cssText = 'color: #585b70; user-select: none; display: inline-block; width: 3ch; text-align: right; margin-right: 1ch;';
+      numSpan.className = '_react-goto-code-num';
       numSpan.textContent = l.num;
       line.appendChild(numSpan);
       line.appendChild(document.createTextNode(l.text));
@@ -243,7 +268,9 @@ function showOverlay(comp) {
 }
 
 function hideOverlay() {
-  overlay.style.display = 'none';
+  highlight.style.display = 'none';
+  tooltip.style.display = 'none';
+  clearAnchor();
 }
 
 // ── Option key hold = picker mode ──
@@ -278,7 +305,9 @@ document.addEventListener('keydown', (e) => {
   if (pickerActive || !matchesShortcut(e)) return;
   pickerActive = true;
   document.body.style.cursor = 'crosshair';
-  document.documentElement.appendChild(overlay);
+  document.documentElement.appendChild(style);
+  document.documentElement.appendChild(highlight);
+  document.documentElement.appendChild(tooltip);
 }, true);
 
 document.addEventListener('keyup', (e) => {
@@ -287,7 +316,10 @@ document.addEventListener('keyup', (e) => {
   if (SHORTCUT_KEYS.includes(e.key) || SHORTCUT_KEYS.includes(e.key.length === 1 ? e.key.toUpperCase() : e.key)) {
     pickerActive = false;
     document.body.style.cursor = '';
-    overlay.remove();
+    clearAnchor();
+    highlight.remove();
+    tooltip.remove();
+    style.remove();
   }
 }, true);
 

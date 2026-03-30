@@ -12,7 +12,7 @@ chrome.storage.local.get({
   projectRoot: '',
   shortcutKeys: ['Alt'],
   showPreview: true,
-  skipDirs: 'dumb_components'
+  skipDirs: 'dumb_components, src/components/'
 }, pushSettings);
 
 chrome.storage.onChanged.addListener((changes) => {
