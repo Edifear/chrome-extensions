@@ -1,3 +1,37 @@
+// ── React DevTools Hook: capture fiber roots for annotation ──
+
+const _fiberRoots = new Set();
+let _annotationDirty = false;
+
+(function installReactHook() {
+  const existing = window.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+
+  function onCommit(rendererID, root) {
+    _fiberRoots.add(root);
+    _annotationDirty = true;
+    if (pickerActive) scheduleAnnotation();
+  }
+
+  if (existing) {
+    const old = existing.onCommitFiberRoot;
+    existing.onCommitFiberRoot = function(rendererID, root, priority, didError) {
+      try { onCommit(rendererID, root); } catch(e) { console.warn('[react-goto]', e); }
+      if (typeof old === 'function') old.apply(this, arguments);
+    };
+  } else {
+    window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+      renderers: new Map(),
+      supportsFiber: true,
+      inject: function() { return 0; },
+      onScheduleFiberRoot: function() {},
+      onCommitFiberRoot: function(rendererID, root) {
+        try { onCommit(rendererID, root); } catch(e) { console.warn('[react-goto]', e); }
+      },
+      onCommitFiberUnmount: function() {},
+    };
+  }
+})();
+
 // ── Configuration (overridden by chrome.storage via content.js) ──
 let PROJECT_ROOT = '';
 let SHORTCUT_KEYS = ['Alt'];
@@ -15,6 +49,7 @@ document.addEventListener('__react-goto-settings', (e) => {
   if (s.skipDirs !== undefined) {
     const extra = s.skipDirs.split(',').map(d => d.trim()).filter(Boolean);
     SKIP_DIRS = ['node_modules', ...extra];
+    _annotationDirty = true;
   }
 });
 
@@ -48,17 +83,16 @@ function getElementHints(element) {
   }
   // Tag name
   if (element.tagName) hints.push(element.tagName.toLowerCase());
-  // Class names (individual) + extract CSS module semantic names
+  // Class names (individual) + extract semantic parts from class names
   if (element.className && typeof element.className === 'string') {
     element.className.split(/\s+/).filter(Boolean).forEach(c => {
       hints.push(c);
-      // CSS modules produce names like "_metadata_1o22u_439" or "prefix_myClass_hash"
-      // Extract the semantic part (e.g. "metadata", "myClass")
-      const parts = c.split('_').filter(Boolean);
+      // Split on underscores (CSS modules: "_metadata_1o22u_439")
+      // and hyphens (BEM/utility: "ant-typography-secondary")
+      const parts = c.split(/[-_]/).filter(Boolean);
       if (parts.length >= 2) {
-        // Skip parts that look like hashes (short alphanumeric) and take semantic parts
         for (const part of parts) {
-          if (part.length >= 3 && !/^[a-z0-9]{3,6}$/.test(part) && !hints.includes(part)) {
+          if (part.length >= 4 && !/^[a-z0-9]{3,6}$/.test(part) && !hints.includes(part)) {
             hints.push(part);
           }
         }
@@ -166,6 +200,164 @@ function getNearestComponent(element) {
     hints,
     alternates
   };
+}
+
+// ── Fiber Annotation (pre-compute data-source on DOM elements) ──
+
+let _annotationRAF = 0;
+
+function scheduleAnnotation() {
+  if (_annotationRAF) return;
+  _annotationRAF = requestAnimationFrame(() => {
+    _annotationRAF = 0;
+    annotateAll();
+  });
+}
+
+function annotateAll() {
+  for (const root of _fiberRoots) {
+    if (root.current) walkFiber(root.current, null);
+  }
+  _annotationDirty = false;
+}
+
+function walkFiber(fiber, nearestComponent) {
+  if (!fiber) return;
+
+  // Track nearest user component name
+  if (typeof fiber.type === 'function' || (typeof fiber.type === 'object' && fiber.type !== null)) {
+    const name = fiber.type?.displayName || fiber.type?.name ||
+                 fiber.type?.render?.displayName || fiber.type?.render?.name;
+    if (name && fiber._debugSource && !isSkippedPath(fiber._debugSource.fileName)) {
+      nearestComponent = name;
+    }
+  }
+
+  // Annotate host elements (div, span, etc.) with source info
+  if (fiber.stateNode && fiber.stateNode.nodeType === 1) {
+    const src = findDebugSource(fiber);
+    if (src) {
+      const fn = src.fileName.replace(/^\/app\//, '/');
+      fiber.stateNode.setAttribute('data-source', `${fn}:${src.lineNumber}:${src.columnNumber || 0}`);
+      if (nearestComponent) {
+        fiber.stateNode.setAttribute('data-component', nearestComponent);
+      }
+    }
+  }
+
+  let child = fiber.child;
+  while (child) {
+    walkFiber(child, nearestComponent);
+    child = child.sibling;
+  }
+}
+
+function findDebugSource(fiber) {
+  let f = fiber;
+  while (f) {
+    if (f._debugSource && !isSkippedPath(f._debugSource.fileName)) return f._debugSource;
+    f = f.return;
+  }
+  return null;
+}
+
+function isSkippedPath(fileName) {
+  return SKIP_DIRS.some(d => fileName.includes(d));
+}
+
+// ── Annotation-based Hover Resolution ──
+
+function getSourceFromAnnotation(element) {
+  let el = element;
+  while (el && el !== document.documentElement) {
+    const src = el.getAttribute('data-source');
+    if (src) {
+      const name = el.getAttribute('data-component') || inferNameFromPath(src);
+      const parsed = parseSourceAttr(src);
+
+      // Collect hints from the hovered element (needed for line correction —
+      // _debugSource line numbers can be offset by Vite's react-refresh preamble)
+      const hints = getElementHints(element);
+      if (name && !hints.includes(name)) hints.push(name);
+
+      // Collect alternates: fiber component-usage chain first (most relevant —
+      // shows WHERE this component is used), then DOM ancestors as fallback.
+      const alternates = [];
+      const seenKeys = new Set([`${parsed.fileName}:${parsed.line}`]);
+
+      // 1. Fiber chain: component usage (e.g. SidebarItemLinks.jsx calling <SidebarItemLink>)
+      const fiber = getFiber(el);
+      if (fiber) {
+        let f = fiber.return;
+        let depth = 0;
+        while (f && depth < 15 && alternates.length < 5) {
+          if (typeof f.type === 'function' && f._debugSource) {
+            const src2 = f._debugSource;
+            if (!isSkippedPath(src2.fileName)) {
+              const fn = src2.fileName.replace(/^\/app\//, '/');
+              const ln = src2.lineNumber;
+              const key = `${fn}:${ln}`;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                const cname = f.type.displayName || f.type.name || inferNameFromPath(`${fn}:${ln}:0`);
+                alternates.push({ name: cname, fileName: fn, line: ln, col: src2.columnNumber || 0 });
+              }
+            }
+          }
+          f = f.return;
+          depth++;
+        }
+      }
+
+      // 2. DOM ancestors: element definition chain (fills remaining slots)
+      let parent = el.parentElement;
+      while (parent && parent !== document.documentElement && alternates.length < 5) {
+        const ps = parent.getAttribute('data-source');
+        if (ps) {
+          const pp = parseSourceAttr(ps);
+          const key = `${pp.fileName}:${pp.line}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            alternates.push({
+              name: parent.getAttribute('data-component') || inferNameFromPath(ps),
+              fileName: pp.fileName, line: pp.line, col: pp.col
+            });
+          }
+        }
+        parent = parent.parentElement;
+      }
+
+      return {
+        name, fileName: parsed.fileName, line: parsed.line, col: parsed.col,
+        hoveredElement: element, hints, alternates
+      };
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function parseSourceAttr(raw) {
+  const last = raw.lastIndexOf(':');
+  const second = raw.lastIndexOf(':', last - 1);
+  return {
+    fileName: raw.substring(0, second),
+    line: parseInt(raw.substring(second + 1, last), 10),
+    col: parseInt(raw.substring(last + 1), 10)
+  };
+}
+
+function inferNameFromPath(dataSource) {
+  const filePath = dataSource.substring(0, dataSource.lastIndexOf(':', dataSource.lastIndexOf(':') - 1));
+  const GENERIC = ['src', 'components', 'ui', 'pages', 'containers', 'modules', 'layout', 'dumb_components', 'views', 'features'];
+  const parts = filePath.split('/');
+  const base = parts[parts.length - 1].replace(/\.[jt]sx?$/, '');
+  if (base === 'index') {
+    for (let i = parts.length - 2; i >= 0; i--) {
+      if (!GENERIC.includes(parts[i])) return parts[i];
+    }
+  }
+  return base;
 }
 
 // ── Overlay (CSS Anchor Positioning) ──
@@ -301,6 +493,15 @@ tooltip.appendChild(alternatesContainer);
 let nextReqId = 0;
 let mainReqId = 0;
 
+// Detect Vite dev server origin from script tags (cached after first call)
+let _viteOrigin = null;
+function getViteOrigin() {
+  if (_viteOrigin !== null) return _viteOrigin;
+  const viteScript = document.querySelector('script[src*="/@vite/"], script[src*="/@react-refresh"]');
+  _viteOrigin = viteScript ? new URL(viteScript.src).origin : location.origin;
+  return _viteOrigin;
+}
+
 function readSource(file, line, context, hints, callback) {
   const reqId = ++nextReqId;
   const handler = (e) => {
@@ -310,7 +511,7 @@ function readSource(file, line, context, hints, callback) {
   };
   document.addEventListener('__react-goto-source-result', handler);
   document.dispatchEvent(new CustomEvent('__react-goto-read-source', {
-    detail: { file, line, context, hints: hints || [], reqId, origin: location.origin, projectRoot: PROJECT_ROOT }
+    detail: { file, line, context, hints: hints || [], reqId, origin: getViteOrigin(), projectRoot: PROJECT_ROOT }
   }));
   return reqId;
 }
@@ -390,7 +591,7 @@ function showOverlay(comp) {
 
     const altLabel = document.createElement('span');
     altLabel.className = '_react-goto-alt-label';
-    altLabel.textContent = `▸ ${alt.name}  ·  ${altShortFile}:${alt.line}`;
+    altLabel.textContent = `▸ ${alt.name}  ·  ${altShortFile}`;
 
     const goBtn = document.createElement('button');
     goBtn.className = '_react-goto-alt-go';
@@ -411,7 +612,7 @@ function showOverlay(comp) {
       e.stopPropagation();
       const expanding = codeArea.style.display === 'none';
       codeArea.style.display = expanding ? '' : 'none';
-      altLabel.textContent = `${expanding ? '▾' : '▸'} ${alt.name}  ·  ${altShortFile}:${alt.matchedLine || alt.line}`;
+      altLabel.textContent = `${expanding ? '▾' : '▸'} ${alt.name}  ·  ${altShortFile}${alt.matchedLine ? ':' + alt.matchedLine : ''}`;
 
       if (expanding && !loaded) {
         loaded = true;
@@ -527,6 +728,7 @@ document.addEventListener('keydown', (e) => {
   if (tooltipPinned) unpinTooltip();
   if (pickerActive || !matchesShortcut(e)) return;
   pickerActive = true;
+  if (_annotationDirty || _fiberRoots.size === 0) annotateAll();
   document.body.style.cursor = 'crosshair';
   document.documentElement.appendChild(style);
   document.documentElement.appendChild(highlight);
@@ -549,8 +751,15 @@ document.addEventListener('keyup', (e) => {
     if (shouldPin) {
       // Keep anchor + tooltip in place, just remove highlight
       tooltipPinned = true;
+    } else if (activeComp) {
+      // Brief grace period so user can move mouse to tooltip to pin it
+      tooltipPinned = true;
+      setTimeout(() => {
+        if (!tooltipPinned) return; // already unpinned by Escape or re-activation
+        if (isMouseOverTooltip()) return; // mouse made it to tooltip — keep pinned
+        unpinTooltip();
+      }, 600);
     } else {
-      activeComp = null;
       clearAnchor();
       tooltip.remove();
       style.remove();
@@ -593,7 +802,7 @@ document.addEventListener('mousemove', (e) => {
 
   const run = () => {
     lastMoveTime = Date.now();
-    const comp = getNearestComponent(e.target);
+    const comp = getSourceFromAnnotation(e.target) || getNearestComponent(e.target);
 
     // No active overlay — show immediately
     if (!activeComp) {

@@ -1,5 +1,5 @@
 const NATIVE_HOST = 'com.react_goto_component.open_in_vscode';
-const APP_VERSION = '1.0';
+const APP_VERSION = '1.1';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { appVersion } = await chrome.storage.local.get('appVersion');
@@ -63,54 +63,110 @@ async function resolveSourceMap(origin, srcPath) {
   const cacheKey = `${origin}${srcPath}`;
   if (sourceMapCache.has(cacheKey)) return sourceMapCache.get(cacheKey);
 
+  // Try multiple origins: the page origin may differ from the Vite dev server
+  const urls = [`${origin}${srcPath}`];
+  // Vite dev server typically on port 3000; page may be on a different port (e.g. Django 8000)
   try {
-    const resp = await fetch(cacheKey);
-    if (!resp.ok) { sourceMapCache.set(cacheKey, null); return null; }
-    const text = await resp.text();
-
-    // Extract inline source map (data URI)
-    const match = text.match(/\/\/[#@]\s*sourceMappingURL=data:[^;]+;base64,(.+)/);
-    if (!match) { sourceMapCache.set(cacheKey, null); return null; }
-
-    const json = JSON.parse(atob(match[1]));
-    const lineMap = buildLineMap(json.mappings);
-
-    // Build reverse: originalLine -> [generatedLines]
-    const origToGen = new Map();
-    for (const [gen, info] of lineMap) {
-      const key = info.origLine;
-      if (!origToGen.has(key)) origToGen.set(key, []);
-      origToGen.get(key).push(gen);
+    const pageOrigin = new URL(origin);
+    if (pageOrigin.port !== '3000') {
+      urls.unshift(`${pageOrigin.protocol}//${pageOrigin.hostname}:3000${srcPath}`);
     }
+  } catch {}
 
-    const result = { lineMap, origToGen, sources: json.sources || [] };
-    sourceMapCache.set(cacheKey, result);
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) continue;
+      const text = await resp.text();
 
-    // Evict oldest if cache too large
-    if (sourceMapCache.size > MAX_CACHE) {
-      const first = sourceMapCache.keys().next().value;
-      sourceMapCache.delete(first);
+      // Extract inline source map (data URI)
+      const match = text.match(/\/\/[#@]\s*sourceMappingURL=data:[^;]+;base64,(.+)/);
+      if (!match) continue;
+
+      const json = JSON.parse(atob(match[1]));
+      const lineMap = buildLineMap(json.mappings);
+
+      // Build reverse: originalLine -> [generatedLines]
+      const origToGen = new Map();
+      for (const [gen, info] of lineMap) {
+        const key = info.origLine;
+        if (!origToGen.has(key)) origToGen.set(key, []);
+        origToGen.get(key).push(gen);
+      }
+
+      // Store served file lines for _debugSource → original line resolution
+      const servedLines = text.split('\n');
+
+      const result = { lineMap, origToGen, servedLines, sources: json.sources || [] };
+      sourceMapCache.set(cacheKey, result);
+
+      // Evict oldest if cache too large
+      if (sourceMapCache.size > MAX_CACHE) {
+        const first = sourceMapCache.keys().next().value;
+        sourceMapCache.delete(first);
+      }
+
+      return result;
+    } catch {
+      continue;
     }
-
-    return result;
-  } catch {
-    sourceMapCache.set(cacheKey, null);
-    return null;
   }
+
+  sourceMapCache.set(cacheKey, null);
+  return null;
 }
 
-// Given a _debugSource line (claimed original), verify/correct it via source map.
-// The source map maps generatedLine -> originalLine.
-// _debugSource should already be in original coordinates, but if the file was edited
-// after compilation, the line might be stale. The source map's reverse mapping can
-// confirm which generated lines map to this original line.
+// Map a _debugSource line number to the correct original source line.
+// _debugSource lines are in "Babel-input" coordinates (original + Vite preamble),
+// NOT original source coordinates. We find the jsxDEV __source reference in the
+// served file and use the source map to get the true original line.
 function correctLineViaSourceMap(sm, claimedLine) {
   if (!sm) return claimedLine;
 
-  // Check if the claimed line exists as an original line in the map
-  if (sm.origToGen.has(claimedLine)) return claimedLine; // confirmed correct
+  // Strategy 1: Search the served file for "lineNumber: X" to find which
+  // generated line contains this __source reference, then use the source map.
+  if (sm.servedLines) {
+    const needle = 'lineNumber: ' + claimedLine;
+    for (let i = 0; i < sm.servedLines.length; i++) {
+      if (sm.servedLines[i].includes(needle)) {
+        // Walk backwards to find the nearest mapped generated line
+        // (the jsxDEV call is usually a few lines before lineNumber: X)
+        for (let j = i; j >= Math.max(0, i - 5); j--) {
+          const mapping = sm.lineMap.get(j + 1);
+          if (mapping) return mapping.origLine;
+        }
+      }
+    }
+  }
 
-  // Line not found — might be stale. Find the closest original line.
+  // Strategy 2: Compute the Babel preamble offset from the source map.
+  // Find the first mapping to origLine=1 — that generated line tells us the served preamble.
+  // Then search near that line for the actual Babel preamble by looking for the first import.
+  if (sm.servedLines) {
+    let servedPreamble = 0;
+    for (const [gen, info] of sm.lineMap) {
+      if (info.origLine === 1) { servedPreamble = gen - 1; break; }
+    }
+    if (servedPreamble > 0) {
+      // Count the Babel-added lines (e.g. $RefreshSig$ calls) that appear
+      // between the served preamble start and the first original import
+      let babelExtra = 0;
+      for (let i = 0; i < servedPreamble; i++) {
+        const line = sm.servedLines[i];
+        if (line && (line.includes('$RefreshSig$') || line.includes('$RefreshReg$')) && !line.includes('import')) {
+          babelExtra++;
+        }
+      }
+      const preambleOffset = servedPreamble + babelExtra;
+      const corrected = claimedLine - preambleOffset;
+      if (corrected > 0 && sm.origToGen.has(corrected)) return corrected;
+    }
+  }
+
+  // Strategy 3: Legacy fallback — check if claimed line exists as original
+  if (sm.origToGen.has(claimedLine)) return claimedLine;
+
+  // Find closest original line
   let closest = claimedLine, minDist = Infinity;
   for (const origLine of sm.origToGen.keys()) {
     const dist = Math.abs(origLine - claimedLine);
@@ -147,12 +203,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     resolveSourceMap(msg.origin, srcPath).then(sm => {
       const correctedLine = correctLineViaSourceMap(sm, msg.line);
 
+      // When source map corrected the line, we have the exact original line —
+      // skip hint matching to prevent false overrides (e.g. "progress" matching progressRed).
+      // Only use hints when source map couldn't help (correctedLine unchanged).
+      const smWorked = sm && correctedLine !== msg.line;
+
       chrome.runtime.sendNativeMessage(NATIVE_HOST, {
         cmd: 'read',
         file: msg.file,
         line: correctedLine,
         context: msg.context || 5,
-        hints: msg.hints || []
+        hints: smWorked ? [] : (msg.hints || [])
       }, (resp) => {
         if (chrome.runtime.lastError) {
           sendResponse({ success: false, error: chrome.runtime.lastError.message });
