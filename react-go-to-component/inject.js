@@ -481,6 +481,25 @@ style.textContent = `
   ._react-goto-alt-go:hover {
     background: rgba(97, 218, 251, 0.5);
   }
+  ._react-goto-copy {
+    background: rgba(97, 218, 251, 0.25);
+    border: none;
+    color: #61dafb;
+    font: 14px/1 -apple-system, sans-serif;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 6px;
+    flex-shrink: 0;
+    display: none;
+  }
+  ._react-goto-copy:hover {
+    background: rgba(97, 218, 251, 0.5);
+  }
+  ._react-goto-label:hover ._react-goto-copy,
+  ._react-goto-alt-header:hover ._react-goto-copy {
+    display: inline-block;
+  }
   ._react-goto-alt-code {
     padding: 4px 10px 6px;
     font: 12px/18px 'SF Mono', 'JetBrains Mono', monospace;
@@ -562,7 +581,7 @@ const labelText = document.createElement('span');
 labelText.className = '_react-goto-label-text';
 
 const labelCopyBtn = document.createElement('button');
-labelCopyBtn.className = '_react-goto-alt-go';
+labelCopyBtn.className = '_react-goto-copy';
 labelCopyBtn.textContent = '\u2398';
 
 const labelGoBtn = document.createElement('button');
@@ -716,7 +735,7 @@ function showOverlay(comp) {
     altLabel.textContent = `▸ ${alt.name}  ·  ${altShortFile}`;
 
     const copyBtn = document.createElement('button');
-    copyBtn.className = '_react-goto-alt-go';
+    copyBtn.className = '_react-goto-copy';
     copyBtn.textContent = '\u2398';
 
     const goBtn = document.createElement('button');
