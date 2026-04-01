@@ -1,4 +1,4 @@
-const NATIVE_HOST = 'com.react_goto_component.open_in_vscode';
+const NATIVE_HOST = 'com.react_goto_component.open_in_editor';
 const APP_VERSION = '1.1';
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -9,6 +9,19 @@ chrome.runtime.onInstalled.addListener(async () => {
     return;
   }
   await chrome.storage.local.set({ appVersion: APP_VERSION });
+
+  chrome.contextMenus.create({
+    id: 'react-goto-source',
+    title: 'Go to source',
+    contexts: ['all'],
+    documentUrlPatterns: ['http://localhost:*/*']
+  });
+});
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'react-goto-source' && tab?.id) {
+    chrome.tabs.sendMessage(tab.id, { type: 'CONTEXT_MENU_GOTO' });
+  }
 });
 
 // ── Minimal source map resolver ──
@@ -188,12 +201,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         file: filePath,
         editor: settings.editor,
         editorArgs: settings.editorArgs
-      }, () => {
+      }, (resp) => {
         if (chrome.runtime.lastError) {
-          console.error('Native messaging error:', chrome.runtime.lastError.message);
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse({ success: true });
         }
       });
     });
+    return true;
   }
 
   if (msg.type === 'READ_SOURCE') {

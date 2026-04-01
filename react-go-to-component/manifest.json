@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "React Go to Component",
   "version": "1.0",
-  "description": "Right-click any React element to open its source component in VS Code",
-  "permissions": ["nativeMessaging", "storage"],
+  "description": "Hold a key + hover to inspect React components and open their source in your editor",
+  "permissions": ["nativeMessaging", "storage", "contextMenus"],
   "host_permissions": ["http://localhost:*/*"],
   "action": {
     "default_popup": "popup.html",

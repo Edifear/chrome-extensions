@@ -375,7 +375,8 @@ style.textContent = `
     pointer-events: none;
     z-index: 2147483647;
     background: rgba(97, 218, 251, 0.15);
-    border: 2px solid rgba(97, 218, 251, 0.8);
+    outline: 2px solid rgba(97, 218, 251, 0.8);
+    outline-offset: -2px;
     border-radius: 4px;
   }
   ._react-goto-tooltip {
@@ -392,20 +393,32 @@ style.textContent = `
     margin-top: 4px;
   }
   ._react-goto-label {
-    padding: 6px 10px;
-    background: rgba(97, 218, 251, 0.95);
-    color: #1a1a2e;
-    font: bold 13px/18px -apple-system, sans-serif;
+    display: flex;
+    align-items: center;
+    padding: 4px 10px;
+    cursor: pointer;
+    background: rgba(30, 30, 46, 0.95);
+  }
+  ._react-goto-label:hover {
+    background: rgba(40, 40, 56, 0.95);
+  }
+  ._react-goto-label-text {
+    flex: 1;
+    font: bold 12px/18px -apple-system, sans-serif;
+    color: #61dafb;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   ._react-goto-code {
     margin: 0;
-    padding: 8px 10px;
-    background: rgba(30, 30, 46, 0.95);
+    padding: 4px 10px 6px;
+    background: rgba(24, 24, 37, 0.95);
     color: #cdd6f4;
     font: 12px/18px 'SF Mono', 'JetBrains Mono', monospace;
     white-space: pre;
     overflow: hidden;
+    border-top: 1px solid rgba(88, 91, 112, 0.15);
   }
   ._react-goto-code > div,
   ._react-goto-alt-code > div {
@@ -474,10 +487,48 @@ style.textContent = `
     color: #cdd6f4;
     white-space: pre;
     overflow: hidden;
-    background: rgba(24, 24, 37, 0.5);
+    background: rgba(24, 24, 37, 0.95);
     border-top: 1px solid rgba(88, 91, 112, 0.15);
   }
+  ._react-goto-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 3px;
+    background: #61dafb;
+    box-shadow: 0 0 8px rgba(97, 218, 251, 0.6);
+    border-radius: 2px 2px 0 0;
+    animation: _react-goto-fw 0.8s ease-out forwards;
+    z-index: 1;
+  }
+  @keyframes _react-goto-fw {
+    0% { width: 0; }
+    100% { width: 100%; }
+  }
 `;
+
+// ── Open in editor with loading indicator ──
+
+function openInEditor(component) {
+  // Show progress bar at top of tooltip
+  const loader = document.createElement('div');
+  loader.className = '_react-goto-loader';
+  tooltip.insertBefore(loader, tooltip.firstChild);
+
+  document.dispatchEvent(new CustomEvent('__react-goto-component', {
+    detail: { component, projectRoot: PROJECT_ROOT }
+  }));
+  const minTime = new Promise(r => setTimeout(r, 800));
+  const response = new Promise(r => {
+    const handler = () => { r(); document.removeEventListener('__react-goto-open-result', handler); };
+    document.addEventListener('__react-goto-open-result', handler);
+    setTimeout(handler, 3000);
+  });
+  Promise.all([minTime, response]).then(() => {
+    loader.remove();
+  });
+}
 
 const highlight = document.createElement('div');
 highlight.className = '_react-goto-highlight';
@@ -487,6 +538,16 @@ tooltip.className = '_react-goto-tooltip';
 
 const label = document.createElement('div');
 label.className = '_react-goto-label';
+
+const labelText = document.createElement('span');
+labelText.className = '_react-goto-label-text';
+
+const labelGoBtn = document.createElement('button');
+labelGoBtn.className = '_react-goto-alt-go';
+labelGoBtn.textContent = '→';
+
+label.appendChild(labelText);
+label.appendChild(labelGoBtn);
 
 const codePreview = document.createElement('pre');
 codePreview.className = '_react-goto-code';
@@ -541,11 +602,28 @@ function showOverlay(comp) {
   setAnchor(comp.hoveredElement);
 
   const shortFile = comp.fileName.split('/').pop();
-  label.textContent = `${comp.name}  ·  ${shortFile}:${comp.line}`;
+  labelText.textContent = `▾ ${comp.name}  ·  ${shortFile}:${comp.line}`;
 
   highlight.style.display = '';
   tooltip.style.display = '';
   alternatesContainer.innerHTML = '';
+
+  // Toggle main code preview on header click
+  label.onclick = (e) => {
+    if (e.target === labelGoBtn) return;
+    e.stopPropagation();
+    const collapsing = codePreview.style.display !== 'none';
+    codePreview.style.display = collapsing ? 'none' : '';
+    labelText.textContent = `${collapsing ? '▸' : '▾'} ${comp.name}  ·  ${shortFile}:${comp.matchedLine || comp.line}`;
+  };
+
+  // Go button opens the file
+  labelGoBtn.onclick = (e) => {
+    e.stopPropagation();
+    const { hints, hoveredElement, alternates, ...compData } = comp;
+    if (comp.matchedLine) compData.line = comp.matchedLine;
+    openInEditor(compData);
+  };
 
   if (!SHOW_PREVIEW) {
     codePreview.style.display = 'none';
@@ -566,7 +644,7 @@ function showOverlay(comp) {
       }
 
       comp.matchedLine = resp.targetLine;
-      label.textContent = `${comp.name}  ·  ${shortFile}:${resp.targetLine}`;
+      labelText.textContent = `▾ ${comp.name}  ·  ${shortFile}:${resp.targetLine}`;
 
       // Strip common leading whitespace
       const minIndent = resp.lines.reduce((min, l) => {
@@ -586,9 +664,7 @@ function showOverlay(comp) {
         line.appendChild(document.createTextNode(l.text.slice(minIndent)));
         line.addEventListener('click', (e) => {
           e.stopPropagation();
-          document.dispatchEvent(new CustomEvent('__react-goto-component', {
-            detail: { component: { name: comp.name, fileName: comp.fileName, line: l.num, col: 0 }, projectRoot: PROJECT_ROOT }
-          }));
+          openInEditor({ name: comp.name, fileName: comp.fileName, line: l.num, col: 0 });
         });
         codePreview.appendChild(line);
       });
@@ -655,9 +731,7 @@ function showOverlay(comp) {
               line.appendChild(document.createTextNode(l.text.slice(minIndent)));
               line.addEventListener('click', (e) => {
                 e.stopPropagation();
-                document.dispatchEvent(new CustomEvent('__react-goto-component', {
-                  detail: { component: { name: alt.name, fileName: alt.fileName, line: l.num, col: 0 }, projectRoot: PROJECT_ROOT }
-                }));
+                openInEditor({ name: alt.name, fileName: alt.fileName, line: l.num, col: 0 });
               });
               codeArea.appendChild(line);
             });
@@ -666,23 +740,9 @@ function showOverlay(comp) {
       }
     });
 
-    const goToAlt = () => {
-      document.dispatchEvent(new CustomEvent('__react-goto-component', {
-        detail: {
-          component: { name: alt.name, fileName: alt.fileName, line: alt.matchedLine || alt.line, col: alt.col },
-          projectRoot: PROJECT_ROOT
-        }
-      }));
-    };
-
     goBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      goToAlt();
-    });
-
-    codeArea.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      goToAlt();
+      openInEditor({ name: alt.name, fileName: alt.fileName, line: alt.matchedLine || alt.line, col: alt.col });
     });
   });
 }
@@ -713,11 +773,29 @@ function isMouseOverTooltip() {
 
 let unpinTimeout = 0;
 
+function pinTooltipInPlace() {
+  // Snapshot the tooltip's current position so it survives element removal/collapse.
+  // Switch from CSS anchor positioning to explicit fixed coordinates.
+  const rect = tooltip.getBoundingClientRect();
+  tooltip.style.positionAnchor = 'unset';
+  tooltip.style.positionArea = 'unset';
+  tooltip.style.marginTop = '0';
+  tooltip.style.top = rect.top + 'px';
+  tooltip.style.left = rect.left + 'px';
+  clearAnchor();
+}
+
 function unpinTooltip() {
   if (!tooltipPinned) return;
   clearTimeout(unpinTimeout);
   tooltipPinned = false;
   activeComp = null;
+  // Reset tooltip positioning back to anchor mode
+  tooltip.style.positionAnchor = '';
+  tooltip.style.positionArea = '';
+  tooltip.style.marginTop = '';
+  tooltip.style.top = '';
+  tooltip.style.left = '';
   clearAnchor();
   tooltip.remove();
   style.remove();
@@ -787,9 +865,11 @@ document.addEventListener('keyup', (e) => {
     if (shouldPin) {
       // Keep anchor + tooltip in place, just remove highlight
       tooltipPinned = true;
+      pinTooltipInPlace();
     } else if (activeComp) {
       // Brief grace period so user can move mouse to tooltip to pin it
       tooltipPinned = true;
+      pinTooltipInPlace();
       setTimeout(() => {
         if (!tooltipPinned) return; // already unpinned by Escape or re-activation
         if (isMouseOverTooltip()) return; // mouse made it to tooltip — keep pinned
@@ -874,18 +954,9 @@ document.addEventListener('mousemove', (e) => {
 // ── Click to open in VS Code ──
 
 document.addEventListener('click', (e) => {
-  // Pinned tooltip: click outside dismisses, click on label/code opens file
+  // Pinned tooltip: click inside is handled by section handlers; click outside dismisses
   if (tooltipPinned) {
-    if (alternatesContainer.contains(e.target)) return;
-    if (tooltip.contains(e.target) && activeComp) {
-      e.preventDefault();
-      e.stopPropagation();
-      const { fiber, hints, hoveredElement, alternates, ...compData } = activeComp;
-      if (activeComp.matchedLine) compData.line = activeComp.matchedLine;
-      document.dispatchEvent(new CustomEvent('__react-goto-component', {
-        detail: { component: compData, projectRoot: PROJECT_ROOT }
-      }));
-    }
+    if (tooltip.contains(e.target)) return;
     unpinTooltip();
     return;
   }
@@ -899,7 +970,31 @@ document.addEventListener('click', (e) => {
   const { fiber, hints, hoveredElement, alternates, ...compData } = activeComp;
   if (activeComp.matchedLine) compData.line = activeComp.matchedLine;
 
-  document.dispatchEvent(new CustomEvent('__react-goto-component', {
-    detail: { component: compData, projectRoot: PROJECT_ROOT }
-  }));
+  openInEditor(compData);
 }, true);
+
+// ── Context menu: right-click → Go to source ──
+
+let lastContextTarget = null;
+document.addEventListener('contextmenu', (e) => {
+  lastContextTarget = e.target;
+}, true);
+
+document.addEventListener('__react-goto-context-menu', () => {
+  if (!lastContextTarget) return;
+
+  // Ensure annotations are fresh
+  if (_annotationDirty || _fiberRoots.size === 0) annotateAll();
+
+  const comp = getSourceFromAnnotation(lastContextTarget) || getNearestComponent(lastContextTarget);
+  if (!comp) return;
+
+  // Open directly — use readSource to get the corrected line, then open
+  readSource(
+    `${PROJECT_ROOT}${comp.fileName}`, comp.line, 0, comp.hints,
+    (resp) => {
+      const line = resp?.targetLine || comp.line;
+      openInEditor({ name: comp.name, fileName: comp.fileName, line, col: comp.col || 0 });
+    }
+  );
+});

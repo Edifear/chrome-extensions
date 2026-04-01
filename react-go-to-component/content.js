@@ -23,6 +23,14 @@ chrome.storage.onChanged.addListener((changes) => {
   pushSettings(updated);
 });
 
+// ── background.js -> inject.js (context menu) ──
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'CONTEXT_MENU_GOTO') {
+    document.dispatchEvent(new CustomEvent('__react-goto-context-menu'));
+  }
+});
+
 // ── inject.js -> background.js (open in VS Code) ──
 
 document.addEventListener('__react-goto-component', (e) => {
@@ -32,6 +40,10 @@ document.addEventListener('__react-goto-component', (e) => {
     type: 'OPEN_COMPONENT',
     component: e.detail.component,
     projectRoot: e.detail.projectRoot
+  }, (resp) => {
+    document.dispatchEvent(new CustomEvent('__react-goto-open-result', {
+      detail: resp || { success: false }
+    }));
   });
 });
 
