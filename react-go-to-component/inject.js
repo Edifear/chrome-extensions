@@ -485,20 +485,20 @@ style.textContent = `
     background: rgba(97, 218, 251, 0.25);
     border: none;
     color: #61dafb;
-    font: 14px/1 -apple-system, sans-serif;
-    padding: 4px 8px;
+    font: bold 11px/1 -apple-system, sans-serif;
+    padding: 3px 6px;
     border-radius: 3px;
     cursor: pointer;
     margin-left: 6px;
     flex-shrink: 0;
-    display: none;
+    opacity: 0;
   }
   ._react-goto-copy:hover {
     background: rgba(97, 218, 251, 0.5);
   }
   ._react-goto-label:hover ._react-goto-copy,
   ._react-goto-alt-header:hover ._react-goto-copy {
-    display: inline-block;
+    opacity: 1;
   }
   ._react-goto-alt-code {
     padding: 4px 10px 6px;
