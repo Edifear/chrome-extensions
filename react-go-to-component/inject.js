@@ -561,11 +561,16 @@ label.className = '_react-goto-label';
 const labelText = document.createElement('span');
 labelText.className = '_react-goto-label-text';
 
+const labelCopyBtn = document.createElement('button');
+labelCopyBtn.className = '_react-goto-alt-go';
+labelCopyBtn.textContent = '\u2398';
+
 const labelGoBtn = document.createElement('button');
 labelGoBtn.className = '_react-goto-alt-go';
 labelGoBtn.textContent = '→';
 
 label.appendChild(labelText);
+label.appendChild(labelCopyBtn);
 label.appendChild(labelGoBtn);
 
 const codePreview = document.createElement('pre');
@@ -628,8 +633,16 @@ function showOverlay(comp) {
   alternatesContainer.innerHTML = '';
 
   // Toggle main code preview on header click
+  labelCopyBtn.onclick = (e) => {
+    e.stopPropagation();
+    const path = `${fullPath(comp.fileName)}:${comp.matchedLine || comp.line}`;
+    navigator.clipboard.writeText(path);
+    labelCopyBtn.textContent = '\u2713';
+    setTimeout(() => { labelCopyBtn.textContent = '\u2398'; }, 1000);
+  };
+
   label.onclick = (e) => {
-    if (e.target === labelGoBtn) return;
+    if (e.target === labelGoBtn || e.target === labelCopyBtn) return;
     e.stopPropagation();
     const collapsing = codePreview.style.display !== 'none';
     codePreview.style.display = collapsing ? 'none' : '';
@@ -702,11 +715,16 @@ function showOverlay(comp) {
     altLabel.className = '_react-goto-alt-label';
     altLabel.textContent = `▸ ${alt.name}  ·  ${altShortFile}`;
 
+    const copyBtn = document.createElement('button');
+    copyBtn.className = '_react-goto-alt-go';
+    copyBtn.textContent = '\u2398';
+
     const goBtn = document.createElement('button');
     goBtn.className = '_react-goto-alt-go';
     goBtn.textContent = '→';
 
     header.appendChild(altLabel);
+    header.appendChild(copyBtn);
     header.appendChild(goBtn);
     alternatesContainer.appendChild(header);
 
@@ -717,7 +735,16 @@ function showOverlay(comp) {
 
     let loaded = false;
 
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const path = `${fullPath(alt.fileName)}:${alt.matchedLine || alt.line}`;
+      navigator.clipboard.writeText(path);
+      copyBtn.textContent = '\u2713';
+      setTimeout(() => { copyBtn.textContent = '\u2398'; }, 1000);
+    });
+
     header.addEventListener('click', (e) => {
+      if (e.target === goBtn || e.target === copyBtn) return;
       e.stopPropagation();
       const expanding = codeArea.style.display === 'none';
       codeArea.style.display = expanding ? '' : 'none';
