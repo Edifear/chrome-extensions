@@ -481,6 +481,25 @@ style.textContent = `
   ._react-goto-alt-go:hover {
     background: rgba(97, 218, 251, 0.5);
   }
+  ._react-goto-copy {
+    background: rgba(97, 218, 251, 0.25);
+    border: none;
+    color: #61dafb;
+    font: bold 11px/1 -apple-system, sans-serif;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 6px;
+    flex-shrink: 0;
+    opacity: 0;
+  }
+  ._react-goto-copy:hover {
+    background: rgba(97, 218, 251, 0.5);
+  }
+  ._react-goto-label:hover ._react-goto-copy,
+  ._react-goto-alt-header:hover ._react-goto-copy {
+    opacity: 1;
+  }
   ._react-goto-alt-code {
     padding: 4px 10px 6px;
     font: 12px/18px 'SF Mono', 'JetBrains Mono', monospace;
@@ -561,11 +580,16 @@ label.className = '_react-goto-label';
 const labelText = document.createElement('span');
 labelText.className = '_react-goto-label-text';
 
+const labelCopyBtn = document.createElement('button');
+labelCopyBtn.className = '_react-goto-copy';
+labelCopyBtn.textContent = '\u2398';
+
 const labelGoBtn = document.createElement('button');
 labelGoBtn.className = '_react-goto-alt-go';
 labelGoBtn.textContent = '→';
 
 label.appendChild(labelText);
+label.appendChild(labelCopyBtn);
 label.appendChild(labelGoBtn);
 
 const codePreview = document.createElement('pre');
@@ -628,8 +652,16 @@ function showOverlay(comp) {
   alternatesContainer.innerHTML = '';
 
   // Toggle main code preview on header click
+  labelCopyBtn.onclick = (e) => {
+    e.stopPropagation();
+    const path = `${fullPath(comp.fileName)}:${comp.matchedLine || comp.line}`;
+    navigator.clipboard.writeText(path);
+    labelCopyBtn.textContent = '\u2713';
+    setTimeout(() => { labelCopyBtn.textContent = '\u2398'; }, 1000);
+  };
+
   label.onclick = (e) => {
-    if (e.target === labelGoBtn) return;
+    if (e.target === labelGoBtn || e.target === labelCopyBtn) return;
     e.stopPropagation();
     const collapsing = codePreview.style.display !== 'none';
     codePreview.style.display = collapsing ? 'none' : '';
@@ -702,11 +734,16 @@ function showOverlay(comp) {
     altLabel.className = '_react-goto-alt-label';
     altLabel.textContent = `▸ ${alt.name}  ·  ${altShortFile}`;
 
+    const copyBtn = document.createElement('button');
+    copyBtn.className = '_react-goto-copy';
+    copyBtn.textContent = '\u2398';
+
     const goBtn = document.createElement('button');
     goBtn.className = '_react-goto-alt-go';
     goBtn.textContent = '→';
 
     header.appendChild(altLabel);
+    header.appendChild(copyBtn);
     header.appendChild(goBtn);
     alternatesContainer.appendChild(header);
 
@@ -717,7 +754,16 @@ function showOverlay(comp) {
 
     let loaded = false;
 
+    copyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const path = `${fullPath(alt.fileName)}:${alt.matchedLine || alt.line}`;
+      navigator.clipboard.writeText(path);
+      copyBtn.textContent = '\u2713';
+      setTimeout(() => { copyBtn.textContent = '\u2398'; }, 1000);
+    });
+
     header.addEventListener('click', (e) => {
+      if (e.target === goBtn || e.target === copyBtn) return;
       e.stopPropagation();
       const expanding = codeArea.style.display === 'none';
       codeArea.style.display = expanding ? '' : 'none';
@@ -981,7 +1027,7 @@ document.addEventListener('click', (e) => {
   }
 
   if (!pickerActive || !activeComp) return;
-  if (alternatesContainer.contains(e.target)) return;
+  if (tooltip.contains(e.target)) return;
 
   e.preventDefault();
   e.stopPropagation();
