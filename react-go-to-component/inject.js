@@ -1027,7 +1027,7 @@ document.addEventListener('click', (e) => {
   }
 
   if (!pickerActive || !activeComp) return;
-  if (alternatesContainer.contains(e.target)) return;
+  if (tooltip.contains(e.target)) return;
 
   e.preventDefault();
   e.stopPropagation();
