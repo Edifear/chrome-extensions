@@ -6,21 +6,19 @@ Hold **Option** + hover any element to see the component, file, and code preview
 
 ## Setup
 
-```sh
-# 1. Load the extension
-#    chrome://extensions → Developer mode → Load unpacked → select this folder
-#    Note the Extension ID shown on the card
+**1. Load the extension** — `chrome://extensions` → Developer mode → Load unpacked → select this folder. Note the Extension ID.
 
-# 2. Install native messaging host (macOS)
+**2. Install native messaging host (macOS):**
+```sh
 cd react-go-to-component
 ./install-host.sh <your-extension-id>
-#    Restart Chrome after this
-
-# 3. Configure (click extension icon in toolbar)
-#    - Project root: full path to your frontend (e.g. /Users/you/Projects/repo/frontend_service)
-#    - Editor: path to editor binary (default: /usr/local/bin/code)
-#    - Activation key: default Option, click to change
 ```
+Restart Chrome after this.
+
+**3. Configure** — click the extension icon in toolbar:
+- **Project root**: full path to your frontend (e.g. `/Users/you/Projects/repo/frontend_service`)
+- **Editor**: path to editor binary (default: `/usr/local/bin/code`)
+- **Activation key**: default Option, click to change
 
 Requires: React dev mode on localhost, macOS, editor with CLI (`code --goto`).
 
