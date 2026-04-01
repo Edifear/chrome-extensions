@@ -506,6 +506,15 @@ style.textContent = `
     0% { width: 0; }
     100% { width: 100%; }
   }
+  ._react-goto-error {
+    padding: 6px 10px;
+    background: rgba(220, 38, 38, 0.9);
+    color: #fff;
+    font: 11px/16px -apple-system, sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 `;
 
 // ── Open in editor with loading indicator ──
@@ -516,17 +525,27 @@ function openInEditor(component) {
   loader.className = '_react-goto-loader';
   tooltip.insertBefore(loader, tooltip.firstChild);
 
+  // Remove any previous error
+  tooltip.querySelector('._react-goto-error')?.remove();
+
   document.dispatchEvent(new CustomEvent('__react-goto-component', {
     detail: { component, projectRoot: PROJECT_ROOT }
   }));
+  let result = null;
   const minTime = new Promise(r => setTimeout(r, 800));
   const response = new Promise(r => {
-    const handler = () => { r(); document.removeEventListener('__react-goto-open-result', handler); };
+    const handler = (e) => { result = e.detail; r(); document.removeEventListener('__react-goto-open-result', handler); };
     document.addEventListener('__react-goto-open-result', handler);
-    setTimeout(handler, 3000);
+    setTimeout(() => { r(); document.removeEventListener('__react-goto-open-result', handler); }, 3000);
   });
   Promise.all([minTime, response]).then(() => {
     loader.remove();
+    if (result && !result.success && result.error) {
+      const err = document.createElement('div');
+      err.className = '_react-goto-error';
+      err.textContent = result.error;
+      tooltip.insertBefore(err, tooltip.firstChild);
+    }
   });
 }
 

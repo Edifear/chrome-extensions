@@ -210,7 +210,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (chrome.runtime.lastError) {
           sendResponse({ success: false, error: chrome.runtime.lastError.message });
         } else {
-          sendResponse({ success: true });
+          sendResponse(resp || { success: false, error: 'No response from native host' });
         }
       });
     });
