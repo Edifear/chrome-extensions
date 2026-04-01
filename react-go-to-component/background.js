@@ -198,7 +198,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (!comp) return;
     // Validate fileName doesn't escape projectRoot via path traversal
     const normalizedName = comp.fileName.replace(/\.\.\//g, '');
-    const filePath = `${msg.projectRoot}${normalizedName}:${comp.line}:${comp.col}`;
+    const fullName = msg.projectRoot && !normalizedName.startsWith(msg.projectRoot)
+      ? `${msg.projectRoot}${normalizedName}` : normalizedName;
+    const filePath = `${fullName}:${comp.line}:${comp.col}`;
     chrome.storage.local.get({ editor: '/usr/local/bin/code', editorArgs: ['--goto'] }, (settings) => {
       chrome.runtime.sendNativeMessage(NATIVE_HOST, {
         cmd: 'open',

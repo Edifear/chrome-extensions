@@ -34,6 +34,13 @@ let _annotationDirty = false;
 
 // ── Configuration (overridden by chrome.storage via content.js) ──
 let PROJECT_ROOT = '';
+
+function fullPath(fileName) {
+  if (PROJECT_ROOT && !fileName.startsWith(PROJECT_ROOT)) {
+    return `${PROJECT_ROOT}${fileName}`;
+  }
+  return fileName;
+}
 let SHORTCUT_KEYS = ['Alt'];
 let SHOW_PREVIEW = true;
 let SKIP_DIRS = ['node_modules'];
@@ -654,7 +661,7 @@ function showOverlay(comp) {
 
   // Request target line + 1 above and 1 below
   const reqId = readSource(
-    `${PROJECT_ROOT}${comp.fileName}`, comp.line, 2, comp.hints,
+    `${fullPath(comp.fileName)}`, comp.line, 2, comp.hints,
     (resp) => {
       if (reqId !== mainReqId) return;
       if (!resp?.success) {
@@ -727,7 +734,7 @@ function showOverlay(comp) {
         loaded = true;
         codeArea.textContent = '…';
         readSource(
-          `${PROJECT_ROOT}${alt.fileName}`, alt.line, 2, [alt.name],
+          `${fullPath(alt.fileName)}`, alt.line, 2, [alt.name],
           (resp) => {
             if (!resp?.success) {
               codeArea.textContent = resp?.error || 'Failed';
@@ -1010,7 +1017,7 @@ document.addEventListener('__react-goto-context-menu', () => {
 
   // Open directly — use readSource to get the corrected line, then open
   readSource(
-    `${PROJECT_ROOT}${comp.fileName}`, comp.line, 0, comp.hints,
+    `${fullPath(comp.fileName)}`, comp.line, 0, comp.hints,
     (resp) => {
       const line = resp?.targetLine || comp.line;
       openInEditor({ name: comp.name, fileName: comp.fileName, line, col: comp.col || 0 });
