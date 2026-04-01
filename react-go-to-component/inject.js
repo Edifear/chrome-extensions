@@ -272,7 +272,7 @@ function getSourceFromAnnotation(element) {
   while (el && el !== document.documentElement) {
     const src = el.getAttribute('data-source');
     if (src) {
-      const name = el.getAttribute('data-component') || inferNameFromPath(src);
+      const name = inferNameFromPath(src);
       const parsed = parseSourceAttr(src);
 
       // Collect hints from the hovered element (needed for line correction —
@@ -299,7 +299,7 @@ function getSourceFromAnnotation(element) {
               const key = `${fn}:${ln}`;
               if (!seenKeys.has(key)) {
                 seenKeys.add(key);
-                const cname = f.type.displayName || f.type.name || inferNameFromPath(`${fn}:${ln}:0`);
+                const cname = inferNameFromPath(`${fn}:${ln}:0`);
                 alternates.push({ name: cname, fileName: fn, line: ln, col: src2.columnNumber || 0 });
               }
             }
@@ -319,7 +319,7 @@ function getSourceFromAnnotation(element) {
           if (!seenKeys.has(key)) {
             seenKeys.add(key);
             alternates.push({
-              name: parent.getAttribute('data-component') || inferNameFromPath(ps),
+              name: inferNameFromPath(ps),
               fileName: pp.fileName, line: pp.line, col: pp.col
             });
           }
@@ -407,10 +407,18 @@ style.textContent = `
     white-space: pre;
     overflow: hidden;
   }
-  ._react-goto-code-line--target {
-    background: rgba(97, 218, 251, 0.2);
+  ._react-goto-code > div,
+  ._react-goto-alt-code > div {
+    cursor: pointer;
     margin: 0 -10px;
     padding: 0 10px;
+  }
+  ._react-goto-code > div:hover,
+  ._react-goto-alt-code > div:hover {
+    background: rgba(88, 91, 112, 0.3);
+  }
+  ._react-goto-code-line--target {
+    background: rgba(97, 218, 251, 0.2) !important;
   }
   ._react-goto-code-num {
     color: #585b70;
@@ -549,7 +557,7 @@ function showOverlay(comp) {
 
   // Request target line + 1 above and 1 below
   const reqId = readSource(
-    `${PROJECT_ROOT}${comp.fileName}`, comp.line, 1, comp.hints,
+    `${PROJECT_ROOT}${comp.fileName}`, comp.line, 2, comp.hints,
     (resp) => {
       if (reqId !== mainReqId) return;
       if (!resp?.success) {
@@ -576,6 +584,12 @@ function showOverlay(comp) {
         numSpan.textContent = l.num;
         line.appendChild(numSpan);
         line.appendChild(document.createTextNode(l.text.slice(minIndent)));
+        line.addEventListener('click', (e) => {
+          e.stopPropagation();
+          document.dispatchEvent(new CustomEvent('__react-goto-component', {
+            detail: { component: { name: comp.name, fileName: comp.fileName, line: l.num, col: 0 }, projectRoot: PROJECT_ROOT }
+          }));
+        });
         codePreview.appendChild(line);
       });
     }
@@ -618,7 +632,7 @@ function showOverlay(comp) {
         loaded = true;
         codeArea.textContent = '…';
         readSource(
-          `${PROJECT_ROOT}${alt.fileName}`, alt.line, 1, [alt.name],
+          `${PROJECT_ROOT}${alt.fileName}`, alt.line, 2, [alt.name],
           (resp) => {
             if (!resp?.success) {
               codeArea.textContent = resp?.error || 'Failed';
@@ -639,6 +653,12 @@ function showOverlay(comp) {
               numSpan.textContent = l.num;
               line.appendChild(numSpan);
               line.appendChild(document.createTextNode(l.text.slice(minIndent)));
+              line.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.dispatchEvent(new CustomEvent('__react-goto-component', {
+                  detail: { component: { name: alt.name, fileName: alt.fileName, line: l.num, col: 0 }, projectRoot: PROJECT_ROOT }
+                }));
+              });
               codeArea.appendChild(line);
             });
           }
@@ -691,14 +711,30 @@ function isMouseOverTooltip() {
   return el && tooltip.contains(el);
 }
 
+let unpinTimeout = 0;
+
 function unpinTooltip() {
   if (!tooltipPinned) return;
+  clearTimeout(unpinTimeout);
   tooltipPinned = false;
   activeComp = null;
   clearAnchor();
   tooltip.remove();
   style.remove();
 }
+
+tooltip.addEventListener('mouseleave', () => {
+  if (!tooltipPinned) return;
+  unpinTimeout = setTimeout(() => {
+    if (!tooltipPinned) return;
+    if (isMouseOverTooltip()) return;
+    unpinTooltip();
+  }, 1000);
+});
+
+tooltip.addEventListener('mouseenter', () => {
+  clearTimeout(unpinTimeout);
+});
 
 function matchesShortcut(e) {
   const pressed = new Set();
@@ -725,7 +761,7 @@ function hasShortcutModifiers(e) {
 
 document.addEventListener('keydown', (e) => {
   if (tooltipPinned && e.key === 'Escape') { unpinTooltip(); return; }
-  if (tooltipPinned) unpinTooltip();
+  if (tooltipPinned && matchesShortcut(e)) unpinTooltip();
   if (pickerActive || !matchesShortcut(e)) return;
   pickerActive = true;
   if (_annotationDirty || _fiberRoots.size === 0) annotateAll();

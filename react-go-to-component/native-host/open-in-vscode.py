@@ -80,6 +80,16 @@ elif cmd == 'read':
         snippet = []
         for i in range(start, end):
             snippet.append({'num': i + 1, 'text': all_lines[i].rstrip('\n')})
+
+        # Trim trivial first/last lines (lone brackets, parens, closing tags, etc.)
+        # Matches lines with only punctuation/whitespace like ")", "});", ") {", "/>", "</div>"
+        import re
+        trivial = re.compile(r'^\s*[\(\)\{\}\[\]<>/;:,.\s]*$')
+        while len(snippet) > 1 and snippet[0]['num'] != target_line and trivial.match(snippet[0]['text']):
+            snippet.pop(0)
+        while len(snippet) > 1 and snippet[-1]['num'] != target_line and trivial.match(snippet[-1]['text']):
+            snippet.pop()
+
         send_message({'success': True, 'lines': snippet, 'targetLine': target_line})
     except Exception as e:
         send_message({'success': False, 'error': str(e)})
