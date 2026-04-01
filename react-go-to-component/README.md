@@ -8,6 +8,8 @@ Hold **Option** + hover any element to see the component, file, and code preview
 
 **1. Load the extension** — `chrome://extensions` → Developer mode → Load unpacked → select this folder. Note the Extension ID.
 
+<img src="docs/extension-id.png" width="400" />
+
 **2. Install native messaging host (macOS):**
 ```sh
 cd react-go-to-component
