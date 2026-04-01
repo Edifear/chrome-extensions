@@ -5,6 +5,9 @@
   "description": "Hold a key + hover to inspect React components and open their source in your editor",
   "permissions": ["nativeMessaging", "storage", "contextMenus"],
   "host_permissions": ["http://localhost:*/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

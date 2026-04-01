@@ -73,6 +73,8 @@ function buildLineMap(mappings) {
 
 async function resolveSourceMap(origin, srcPath) {
   if (!origin || !srcPath) return null;
+  // Only fetch JS/map files from the dev server
+  if (!/\.(js|mjs|jsx|ts|tsx)(\.map)?$/.test(srcPath.split('?')[0])) return null;
   const cacheKey = `${origin}${srcPath}`;
   if (sourceMapCache.has(cacheKey)) return sourceMapCache.get(cacheKey);
 
@@ -194,13 +196,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'OPEN_COMPONENT') {
     const comp = msg.component;
     if (!comp) return;
-    const filePath = `${msg.projectRoot}${comp.fileName}:${comp.line}:${comp.col}`;
+    // Validate fileName doesn't escape projectRoot via path traversal
+    const normalizedName = comp.fileName.replace(/\.\.\//g, '');
+    const filePath = `${msg.projectRoot}${normalizedName}:${comp.line}:${comp.col}`;
     chrome.storage.local.get({ editor: '/usr/local/bin/code', editorArgs: ['--goto'] }, (settings) => {
       chrome.runtime.sendNativeMessage(NATIVE_HOST, {
         cmd: 'open',
         file: filePath,
         editor: settings.editor,
-        editorArgs: settings.editorArgs
+        editorArgs: settings.editorArgs,
+        projectRoot: msg.projectRoot
       }, (resp) => {
         if (chrome.runtime.lastError) {
           sendResponse({ success: false, error: chrome.runtime.lastError.message });
@@ -229,7 +234,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         file: msg.file,
         line: correctedLine,
         context: msg.context || 5,
-        hints: smWorked ? [] : (msg.hints || [])
+        hints: smWorked ? [] : (msg.hints || []),
+        projectRoot: msg.projectRoot
       }, (resp) => {
         if (chrome.runtime.lastError) {
           sendResponse({ success: false, error: chrome.runtime.lastError.message });
@@ -244,7 +250,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         file: msg.file,
         line: msg.line,
         context: msg.context || 5,
-        hints: msg.hints || []
+        hints: msg.hints || [],
+        projectRoot: msg.projectRoot
       }, (resp) => {
         if (chrome.runtime.lastError) {
           sendResponse({ success: false, error: chrome.runtime.lastError.message });
