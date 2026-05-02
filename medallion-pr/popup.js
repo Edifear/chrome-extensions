@@ -37,12 +37,28 @@ itemsContainer.addEventListener('click', (e) => {
     chrome.runtime.sendMessage({ type: 'removeItem', id: removeBtn.dataset.id });
     return;
   }
-  // Don't toggle on link clicks inside details
-  if (e.target.closest('a')) return;
+  const link = e.target.closest('a');
+  if (link) {
+    // cmd/ctrl/middle-click → open in background tab so popup stays open
+    if (e.metaKey || e.ctrlKey || e.button === 1) {
+      e.preventDefault();
+      chrome.tabs.create({ url: link.href, active: false });
+    }
+    return;
+  }
   const body = e.target.closest('.item-body');
   if (body) {
     body.closest('.item').classList.toggle('expanded');
   }
+});
+
+// Middle-click (auxclick) on links — same background-tab behavior
+itemsContainer.addEventListener('auxclick', (e) => {
+  if (e.button !== 1) return;
+  const link = e.target.closest('a');
+  if (!link) return;
+  e.preventDefault();
+  chrome.tabs.create({ url: link.href, active: false });
 });
 
 async function loadTheme() {
