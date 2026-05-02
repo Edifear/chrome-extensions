@@ -85,7 +85,9 @@ async function renderItems(items) {
   itemsContainer.innerHTML = items.map((item) => {
     const synced = item.lastChecked != null;
     const hasUnread = item.unreadCount > 0;
-    const stateClass = hasUnread ? 'has-unread expanded' : synced ? 'is-clean' : '';
+    const alwaysExpanded = item.title === 'My PR';
+    const expandedClass = (hasUnread || alwaysExpanded) ? 'expanded' : '';
+    const stateClass = `${hasUnread ? 'has-unread' : synced ? 'is-clean' : ''} ${expandedClass}`.trim();
     const countsClass = hasUnread ? 'has-unread' : '';
     const countsText = item.totalCount != null ? `${item.unreadCount || 0}/${item.totalCount}` : '';
     const errorText = item.lastError ? `<span class="item-error truncate" title="${escapeHtml(item.lastError)}">${escapeHtml(item.lastError)}</span>` : '';
@@ -95,18 +97,54 @@ async function renderItems(items) {
 
     const nodes = item.nodes || [];
     const detailsHtml = nodes.length ? nodes.map((n) => {
-      const rd = n.reviewDecision;
       const isPR = n.__typename === 'PullRequest';
-      let statusClass = 'pending';
-      let statusLabel = '?';
-      if (isPR && rd === 'APPROVED') { statusClass = 'approved'; statusLabel = '\u2713'; }
-      else if (isPR && rd === 'CHANGES_REQUESTED') { statusClass = 'changes'; statusLabel = '\u2717'; }
-      else if (isPR && rd === 'REVIEW_REQUIRED') { statusClass = 'pending'; statusLabel = '\u25CB'; }
-      else if (!isPR) { statusClass = 'pending'; statusLabel = 'I'; }
       const unread = n.isReadByViewer === false;
-      return `<div class="pr-row${unread ? ' pr-unread' : ''}">
-        <div class="pr-status ${statusClass}${unread ? ' unread' : ''}">${statusLabel}</div>
+
+      let badgesHtml = '';
+      let mergeable = false;
+      if (isPR) {
+        const rd = n.reviewDecision;
+        let reviewClass = 'review-pending';
+        let reviewLabel = '\u25CB';
+        let reviewTitle = 'Review required';
+        if (rd === 'APPROVED') { reviewClass = 'review-approved'; reviewLabel = '\u2713'; reviewTitle = 'Approved'; }
+        else if (rd === 'CHANGES_REQUESTED') { reviewClass = 'review-changes'; reviewLabel = '\u2717'; reviewTitle = 'Changes requested'; }
+
+        const ciState = n.commits?.nodes?.[0]?.commit?.statusCheckRollup?.state;
+        const conflicting = n.mergeable === 'CONFLICTING';
+        let ciClass = 'ci-unknown';
+        let ciLabel = '\u2022';
+        let ciTitle = 'Merge status unknown';
+        if (conflicting) {
+          ciClass = 'ci-conflict';
+          ciLabel = '!';
+          ciTitle = 'Has merge conflicts';
+        } else if (ciState === 'SUCCESS') {
+          ciClass = 'ci-pass';
+          ciLabel = '\u2713';
+          ciTitle = 'CI passing';
+        } else if (ciState === 'FAILURE' || ciState === 'ERROR') {
+          ciClass = 'ci-fail';
+          ciLabel = '\u2717';
+          ciTitle = 'CI failing';
+        } else if (ciState === 'PENDING') {
+          ciClass = 'ci-pending';
+          ciLabel = '\u25CB';
+          ciTitle = 'CI pending';
+        }
+
+        mergeable = rd === 'APPROVED' && ciClass === 'ci-pass' && !conflicting;
+
+        badgesHtml = `<div class="pr-badges">
+          <div class="review-badge ${reviewClass}" title="${reviewTitle}">${reviewLabel}</div>
+          <div class="ci-badge ${ciClass}" title="${ciTitle}">${ciLabel}</div>
+        </div>`;
+      }
+      const rowClasses = ['pr-row', unread && 'pr-unread', mergeable && 'pr-mergeable'].filter(Boolean).join(' ');
+
+      return `<div class="${rowClasses}">
         <div class="pr-title truncate"><a href="${escapeHtml(n.url)}" target="_blank">${escapeHtml(n.title)}</a></div>
+        ${badgesHtml}
         <span class="pr-number">#${n.number}</span>
       </div>`;
     }).join('') : '';

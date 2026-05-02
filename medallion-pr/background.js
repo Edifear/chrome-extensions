@@ -12,13 +12,23 @@ const SEARCH_QUERY = `
         ... on PullRequest {
           __typename number title url isReadByViewer
           reviewDecision
+          mergeable
+          commits(last: 1) {
+            nodes {
+              commit {
+                statusCheckRollup {
+                  state
+                }
+              }
+            }
+          }
         }
       }
     }
   }
 `;
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.6';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { appVersion } = await chrome.storage.local.get('appVersion');
@@ -234,7 +244,7 @@ async function fetchSearchSingle(token, query) {
 }
 
 function updateBadge(items) {
-  const count = items.filter((i) => i.unreadCount > 0).length;
+  const count = items.reduce((sum, i) => sum + i.unreadCount, 0);
   if (count > 0) {
     chrome.action.setBadgeText({ text: String(count) });
     chrome.action.setBadgeBackgroundColor({ color: '#ff6b6b' });
