@@ -132,5 +132,30 @@ elif cmd == 'read':
     except Exception as e:
         send_message({'success': False, 'error': str(e)})
 
+elif cmd == 'detect_root':
+    try:
+        port = int(msg.get('port'))
+        if port < 1 or port > 65535:
+            raise ValueError('Port out of range')
+        listen = subprocess.run(
+            ['lsof', '-nP', f'-iTCP:{port}', '-sTCP:LISTEN', '-t'],
+            capture_output=True, text=True, timeout=5
+        )
+        pids = [p for p in listen.stdout.strip().split('\n') if p.strip().isdigit()]
+        if not pids:
+            send_message({'success': False, 'error': f'No process listening on port {port}'})
+        else:
+            cwd_proc = subprocess.run(
+                ['lsof', '-p', pids[0], '-a', '-d', 'cwd', '-Fn'],
+                capture_output=True, text=True, timeout=5
+            )
+            cwd = next((line[1:] for line in cwd_proc.stdout.splitlines() if line.startswith('n')), None)
+            if not cwd:
+                send_message({'success': False, 'error': f'Could not read cwd for PID {pids[0]}'})
+            else:
+                send_message({'success': True, 'projectRoot': cwd, 'pid': int(pids[0])})
+    except Exception as e:
+        send_message({'success': False, 'error': str(e)})
+
 else:
     send_message({'success': False, 'error': f'Unknown command: {cmd}'})

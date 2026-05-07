@@ -1,5 +1,5 @@
 const NATIVE_HOST = 'com.react_goto_component.open_in_editor';
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.1.1';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { appVersion } = await chrome.storage.local.get('appVersion');
@@ -192,7 +192,18 @@ function correctLineViaSourceMap(sm, claimedLine) {
 
 // ── Message handling ──
 
+const BADGE_ACTIVE_COLOR = '#61dafb';
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === 'STATE_CHANGE') {
+    const tabId = sender.tab?.id;
+    if (tabId !== undefined) {
+      chrome.action.setBadgeText({ tabId, text: msg.active ? 'ON' : '' });
+      if (msg.active) chrome.action.setBadgeBackgroundColor({ tabId, color: BADGE_ACTIVE_COLOR });
+    }
+    return;
+  }
+
   if (msg.type === 'OPEN_COMPONENT') {
     const comp = msg.component;
     if (!comp) return;
@@ -201,11 +212,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const fullName = msg.projectRoot && !normalizedName.startsWith(msg.projectRoot)
       ? `${msg.projectRoot}${normalizedName}` : normalizedName;
     const filePath = `${fullName}:${comp.line}:${comp.col}`;
-    chrome.storage.local.get({ editor: '/usr/local/bin/code', editorArgs: ['--goto'] }, (settings) => {
+    chrome.storage.local.get({ editor: '/usr/local/bin/code', editorArgs: ['--goto'], originSettings: {} }, (settings) => {
+      const originEditor = msg.origin ? settings.originSettings?.[msg.origin]?.editor : null;
+      const editor = originEditor || settings.editor;
       chrome.runtime.sendNativeMessage(NATIVE_HOST, {
         cmd: 'open',
         file: filePath,
-        editor: settings.editor,
+        editor,
         editorArgs: settings.editorArgs,
         projectRoot: msg.projectRoot
       }, (resp) => {

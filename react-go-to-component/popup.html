@@ -108,6 +108,24 @@
       color: #6b7280;
     }
 
+    /* ── Section divider ── */
+    .section-header {
+      padding: 14px 20px 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9ca3af;
+      border-bottom: 1px solid #eef0f4;
+      background: #fcfcfd;
+    }
+    .no-origin-hint {
+      padding: 14px 20px;
+      font-size: 11.5px;
+      color: #9ca3af;
+      border-bottom: 1px solid #eef0f4;
+    }
+
     /* ── Shortcut recorder ── */
     .shortcut-display {
       display: flex;
@@ -142,6 +160,38 @@
       white-space: nowrap;
     }
     .shortcut-plus { font-size: 10px; color: #9ca3af; }
+
+    /* ── Inline checkbox (e.g. Auto-detect) ── */
+    .inline-checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 400;
+      color: #6b7280;
+      cursor: pointer;
+      user-select: none;
+    }
+    .inline-checkbox input {
+      margin: 0;
+      cursor: pointer;
+      accent-color: #61dafb;
+    }
+    .path-input:disabled {
+      background: #f3f4f6;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+    .status-hint {
+      margin-top: 6px;
+      font-size: 10.5px;
+      line-height: 1.5;
+      font-family: 'DM Mono', monospace;
+      word-break: break-all;
+    }
+    .status-hint.info { color: #6b7280; }
+    .status-hint.success { color: #059669; }
+    .status-hint.error { color: #dc2626; font-family: 'DM Sans', sans-serif; }
 
     /* ── Toggle switch ── */
     .toggle-row {
@@ -185,22 +235,46 @@
   </div>
 
   <div class="settings">
-    <div class="setting">
-      <div class="setting-label">Project root</div>
-      <input type="text" class="path-input" id="project-root" placeholder="/Users/you/Projects/repo/frontend_service" spellcheck="false" />
+    <div class="section-header" id="page-section-header" style="display: none;">For this page &middot; <span id="page-origin"></span></div>
+    <div class="no-origin-hint" id="no-origin-hint" style="display: none;">Open a localhost tab to configure per-page settings.</div>
+
+    <div class="setting" id="page-toggle-row" style="display: none;">
+      <div class="toggle-row">
+        <div class="setting-label">Enabled on this page</div>
+        <label class="toggle">
+          <input type="checkbox" id="page-enabled" checked />
+          <div class="toggle-track"></div>
+        </label>
+      </div>
     </div>
 
-    <div class="setting">
-      <div class="setting-label">Editor path</div>
-      <input type="text" class="path-input" id="editor-path" placeholder="/usr/local/bin/code" spellcheck="false" />
-      <div class="hint">VS Code: <code>/usr/local/bin/code</code> &middot; Cursor: <code>/usr/local/bin/cursor</code> &middot; WebStorm: <code>webstorm</code></div>
+    <div class="page-settings" id="page-settings" style="display: none;">
+      <div class="setting">
+        <div class="setting-label">
+          <span>Project root</span>
+          <label class="inline-checkbox">
+            <input type="checkbox" id="auto-detect-root" />
+            <span>Auto-detect</span>
+          </label>
+        </div>
+        <input type="text" class="path-input" id="project-root" placeholder="/Users/you/Projects/repo/frontend_service" spellcheck="false" />
+        <div class="status-hint" id="auto-detect-status" style="display: none;"></div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">Editor path</div>
+        <input type="text" class="path-input" id="editor-path" placeholder="/usr/local/bin/code" spellcheck="false" />
+        <div class="hint">VS Code: <code>/usr/local/bin/code</code> &middot; Cursor: <code>/usr/local/bin/cursor</code> &middot; WebStorm: <code>webstorm</code></div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">Skip directories</div>
+        <input type="text" class="path-input" id="skip-dirs" placeholder="node_modules, .next, dist" spellcheck="false" />
+        <div class="hint">Comma-separated. Fibers with these in the path are skipped. <code>node_modules</code> is always skipped.</div>
+      </div>
     </div>
 
-    <div class="setting">
-      <div class="setting-label">Skip directories</div>
-      <input type="text" class="path-input" id="skip-dirs" placeholder="node_modules, .next, dist" spellcheck="false" />
-      <div class="hint">Comma-separated. Fibers with these in the path are skipped. <code>node_modules</code> is always skipped.</div>
-    </div>
+    <div class="section-header">Global</div>
 
     <div class="setting">
       <div class="setting-label">Activation key</div>
