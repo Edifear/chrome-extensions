@@ -129,9 +129,14 @@ Give the subagent a prompt along these lines (fill in `<repo>`, `<number>`):
 > injection, leaked secrets/PII, broken tenant isolation, unsafe deserialization,
 > SSRF); correctness hazards (race conditions, non-idempotent retries,
 > transaction misuse, on_commit pitfalls); migration-safety violations (a
-> migration that breaks currently-running old code — see
-> `.agents/docs/migrations.md`); anything that will clearly crash, hang, or break
-> a code path at runtime.
+> migration that breaks currently-running old code;
+> breaking existing functionality (a change that
+> breaks code **outside the diff** that depends on what this PR touched — e.g. a
+> changed/removed function signature, renamed or deleted symbol/field/route, or
+> altered return shape or behavior that existing callers, serializers, API
+> consumers, or templates still rely on; verify by grepping the checkout for
+> callers/usages of the touched symbol and confirming they're now broken);
+> anything that will clearly crash, hang, or break a code path at runtime.
 >
 > IGNORE: style, naming, formatting, lint nits, test-coverage gaps, missing
 > docstrings, minor refactors, subjective preferences, and any pre-existing issue
