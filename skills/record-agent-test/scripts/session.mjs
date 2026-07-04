@@ -33,11 +33,16 @@ const DAEMON_LOG = path.join(ROOT, '.run', 'daemon.log');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- tiny flag parser: `cmd --key value --flag` ----------
+// A value that itself starts with "--" needs the explicit form `--key=value`
+// (e.g. `--value=--weird`); in the space form a following --token is read as
+// the next flag.
 function parseFlags(argv) {
   const flags = {};
   for (let i = 0; i < argv.length; i++) {
     const tok = argv[i];
     if (!tok.startsWith('--')) continue;
+    const eq = tok.indexOf('=');
+    if (eq !== -1) { flags[tok.slice(2, eq)] = tok.slice(eq + 1); continue; }
     const key = tok.slice(2);
     const next = argv[i + 1];
     if (next === undefined || next.startsWith('--')) flags[key] = true;
