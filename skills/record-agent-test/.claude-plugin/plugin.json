@@ -1,0 +1,6 @@
+{
+  "name": "record-agent-test",
+  "description": "Agent Flow Studio recording skills (pw-playground + Medallion) with a SessionEnd hook that stops/deletes md worktrees registered for cleanup",
+  "version": "0.1.0",
+  "author": { "name": "Sergii Iushchuk" }
+}

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nimbus — Workspace settings</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { --bg:#0b1020; --card:#151b2e; --ink:#e5e9f2; --muted:#8b93a7; --accent:#f59e0b; --border:#273049; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background:var(--bg); color:var(--ink); display:flex; justify-content:center; padding:36px 20px 80px; }
+    .page { width:100%; max-width:680px; }
+    h1 { margin:0 0 4px; font-size:24px; }
+    p.sub { margin:0 0 20px; color:var(--muted); font-size:14px; }
+    .toast { position:fixed; top:18px; left:50%; transform:translateX(-50%); display:none;
+             padding:12px 20px; border-radius:10px; background:#065f46; color:#d1fae5;
+             font-size:14px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.5); z-index:20; }
+    .toast.show { display:block; }
+    section.card { background:var(--card); border:1px solid var(--border); border-radius:14px;
+            padding:22px 24px; margin-bottom:18px; }
+    h2 { margin:0 0 4px; font-size:16px; }
+    p.hint { margin:0 0 10px; color:var(--muted); font-size:13px; }
+    label { display:block; font-size:13px; font-weight:600; margin:14px 0 6px; color:#c3c9d6; }
+    input[type=text], select, textarea {
+      width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
+      background:#0d1326; color:var(--ink); font-size:14px; font-family:inherit; }
+    input:focus, select:focus, textarea:focus { outline:2px solid var(--accent); outline-offset:1px; }
+    textarea { min-height:80px; resize:vertical; }
+    .row { display:flex; align-items:center; gap:10px; margin:8px 0; }
+    .row label { margin:0; font-weight:400; color:var(--ink); }
+    button.save { padding:12px 26px; border:0; border-radius:10px; cursor:pointer;
+             background:var(--accent); color:#221500; font-weight:700; font-size:14.5px; }
+    button.save:hover { filter:brightness(1.08); }
+    .summary { border-left:3px solid var(--accent); padding:12px 16px; background:#0d1326;
+               border-radius:0 10px 10px 0; font-size:13.5px; line-height:1.7; color:#c9cfdd; }
+    .summary strong { color:var(--ink); }
+    footer { color:#525b72; font-size:12px; margin-top:30px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast" data-testid="save-toast" role="status" aria-live="polite"></div>
+  <div class="page">
+    <h1>Workspace settings</h1>
+    <p class="sub">Profile, appearance and notification preferences for the Nimbus workspace.</p>
+
+    <section class="card">
+      <h2>Profile</h2>
+      <p class="hint">How you appear to teammates.</p>
+      <label for="displayName">Display name</label>
+      <input id="displayName" type="text" autocomplete="off" placeholder="Kai Tanaka" />
+      <label for="jobTitle">Job title</label>
+      <input id="jobTitle" type="text" autocomplete="off" placeholder="Product Designer" />
+      <label for="bio">Bio</label>
+      <textarea id="bio" placeholder="A line or two about you"></textarea>
+    </section>
+
+    <section class="card">
+      <h2>Localization</h2>
+      <p class="hint">Times and dates are shown in this timezone.</p>
+      <label for="timezone">Timezone</label>
+      <select id="timezone">
+        <option value="">Select a timezone…</option>
+        <option>UTC</option>
+        <option>Europe/Berlin</option>
+        <option>Europe/Kyiv</option>
+        <option>America/New_York</option>
+        <option>Asia/Tokyo</option>
+      </select>
+    </section>
+
+    <section class="card">
+      <h2>Appearance</h2>
+      <p class="hint">Pick a theme for the app.</p>
+      <div class="row"><input id="theme-system" type="radio" name="theme" value="System" checked />
+        <label for="theme-system">System</label></div>
+      <div class="row"><input id="theme-light" type="radio" name="theme" value="Light" />
+        <label for="theme-light">Light</label></div>
+      <div class="row"><input id="theme-dark" type="radio" name="theme" value="Dark" />
+        <label for="theme-dark">Dark</label></div>
+    </section>
+
+    <section class="card">
+      <h2>Notifications</h2>
+      <p class="hint">What lands in your inbox.</p>
+      <div class="row"><input id="notify-mentions" type="checkbox" checked />
+        <label for="notify-mentions">Email me when I'm mentioned</label></div>
+      <div class="row"><input id="notify-digest" type="checkbox" />
+        <label for="notify-digest">Send the weekly digest</label></div>
+    </section>
+
+    <section class="card">
+      <h2>Current profile</h2>
+      <p class="hint">This is what teammates see today.</p>
+      <div class="summary" data-testid="profile-summary">
+        No profile saved yet — fill in the settings above and save.
+      </div>
+    </section>
+
+    <button class="save" id="save" data-testid="save-settings">Save changes</button>
+    <footer>Nimbus workspace · settings are stored locally in this demo</footer>
+  </div>
+
+  <script>
+    const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    const toast = document.getElementById('toast');
+    document.getElementById('save').addEventListener('click', () => {
+      const name = document.getElementById('displayName').value.trim() || '—';
+      const title = document.getElementById('jobTitle').value.trim() || '—';
+      const bio = document.getElementById('bio').value.trim();
+      const tz = document.getElementById('timezone').value || '—';
+      const theme = document.querySelector('input[name="theme"]:checked').value;
+      const mentions = document.getElementById('notify-mentions').checked;
+      const digest = document.getElementById('notify-digest').checked;
+      document.querySelector('[data-testid="profile-summary"]').innerHTML =
+        '<strong>' + esc(name) + '</strong> · ' + esc(title) + '<br>' +
+        'Timezone: <strong>' + esc(tz) + '</strong> · Theme: <strong>' + esc(theme) + '</strong><br>' +
+        'Notifications: ' + (mentions ? 'mentions' : 'no mentions') + (digest ? ' + weekly digest' : ', no digest') +
+        (bio ? '<br>“' + esc(bio) + '”' : '');
+      toast.textContent = 'Settings saved for ' + name;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 30000);
+    });
+  </script>
+</body>
+</html>

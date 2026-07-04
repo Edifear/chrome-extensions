@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Northwind Coffee — Checkout</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { --ink:#2b2118; --muted:#8a7a68; --accent:#b45309; --soft:#fff7ed; --border:#e7d9c6; }
+    body { margin:0; font-family: Georgia, 'Times New Roman', serif; background:#faf3e7; color:var(--ink);
+           display:flex; justify-content:center; padding:34px 20px 70px; }
+    .page { width:100%; max-width:640px; }
+    h1 { margin:0 0 2px; font-size:26px; font-weight:600; }
+    p.sub { margin:0 0 18px; color:var(--muted); font-size:14px; font-family:system-ui,sans-serif; }
+    .steps { display:flex; gap:8px; margin-bottom:18px; font:600 12px system-ui,sans-serif; }
+    .step-pill { flex:1; text-align:center; padding:8px 4px; border-radius:999px; background:#f1e5d2;
+                 color:#a08d75; border:1px solid var(--border); }
+    .step-pill.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .step-pill.done { background:#3f6212; color:#ecfccb; border-color:#3f6212; }
+    section.card { background:#fffdf8; border:1px solid var(--border); border-radius:14px;
+            padding:22px 24px; margin-bottom:16px; box-shadow:0 10px 30px rgba(120,80,20,.08); }
+    section.card[hidden] { display:none; }
+    h2 { margin:0 0 12px; font-size:18px; font-weight:600; }
+    label { display:block; font:600 13px system-ui,sans-serif; margin:13px 0 5px; color:#5f513f; }
+    input[type=text], select {
+      width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
+      background:#fff; color:var(--ink); font-size:14px; font-family:system-ui,sans-serif; }
+    input:focus, select:focus { outline:2px solid var(--accent); outline-offset:1px; }
+    .row { display:flex; align-items:center; gap:10px; margin:7px 0; font-family:system-ui,sans-serif; }
+    .row label { margin:0; font-weight:400; font-size:14px; color:var(--ink); }
+    .inline { display:flex; gap:10px; align-items:flex-end; }
+    .inline > div { flex:1; }
+    button { padding:11px 20px; border:0; border-radius:9px; cursor:pointer; font:700 14px system-ui,sans-serif;
+             background:var(--accent); color:#fff; }
+    button:hover { filter:brightness(1.08); }
+    button.ghost { background:transparent; color:var(--accent); border:1.5px solid var(--accent); }
+    .totals { background:var(--soft); border:1px solid var(--border); border-radius:10px;
+              padding:12px 16px; margin-top:14px; font-family:system-ui,sans-serif; font-size:14px; }
+    .totals .line { display:flex; justify-content:space-between; margin:4px 0; color:#6b5d49; }
+    .totals .line.total { font-weight:700; color:var(--ink); border-top:1px dashed var(--border);
+                          padding-top:8px; margin-top:8px; font-size:15px; }
+    .promo-note { font:12.5px system-ui,sans-serif; margin-top:6px; color:#3f6212; display:none; }
+    .promo-note.bad { color:#b91c1c; }
+    .promo-note.show { display:block; }
+    .actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+    .confirm { text-align:center; padding:12px 0 4px; }
+    .confirm .big { font-size:22px; font-weight:600; color:#3f6212; margin-bottom:6px; }
+    .confirm p { font-family:system-ui,sans-serif; color:var(--muted); font-size:14px; }
+    .order-summary { text-align:left; font-family:system-ui,sans-serif; font-size:13.5px; line-height:1.8;
+                     background:var(--soft); border:1px solid var(--border); border-radius:10px; padding:14px 18px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Northwind Coffee</h1>
+    <p class="sub">Small-batch beans, roasted on Fridays. Free shipping over $60.</p>
+
+    <div class="steps">
+      <div class="step-pill active" id="pill-1">1 · Cart</div>
+      <div class="step-pill" id="pill-2">2 · Shipping</div>
+      <div class="step-pill" id="pill-3">3 · Payment</div>
+    </div>
+
+    <!-- Step 1: cart -->
+    <section class="card" id="step-cart" data-testid="step-cart">
+      <h2>Your cart</h2>
+      <div class="inline">
+        <div>
+          <label for="qty">Bags of "Midnight Ember" (12 oz) — $24.00 each</label>
+          <select id="qty">
+            <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+          </select>
+        </div>
+      </div>
+      <div class="inline" style="margin-top:12px;">
+        <div>
+          <label for="promo">Promo code</label>
+          <input id="promo" type="text" autocomplete="off" placeholder="e.g. ROAST10" />
+        </div>
+        <button class="ghost" type="button" id="apply-promo" data-testid="apply-promo">Apply promo</button>
+      </div>
+      <p class="promo-note" id="promo-note" data-testid="promo-note"></p>
+      <div class="totals" data-testid="cart-totals">
+        <div class="line"><span>Subtotal</span><span id="subtotal">$24.00</span></div>
+        <div class="line"><span>Discount</span><span id="discount">—</span></div>
+        <div class="line total"><span>Total before shipping</span><span id="cart-total" data-testid="cart-total">$24.00</span></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="to-shipping" data-testid="to-shipping">Continue to shipping</button>
+      </div>
+    </section>
+
+    <!-- Step 2: shipping -->
+    <section class="card" id="step-shipping" data-testid="step-shipping" hidden>
+      <h2>Shipping</h2>
+      <label for="shipName">Full name</label>
+      <input id="shipName" type="text" autocomplete="off" placeholder="Nora Okafor" />
+      <label for="address">Street address</label>
+      <input id="address" type="text" autocomplete="off" placeholder="14 Ridge Lane" />
+      <div class="inline">
+        <div>
+          <label for="city">City</label>
+          <input id="city" type="text" autocomplete="off" placeholder="Portland" />
+        </div>
+        <div>
+          <label for="country">Country</label>
+          <select id="country">
+            <option value="">Select…</option>
+            <option>United States</option><option>Germany</option><option>Ukraine</option><option>Japan</option>
+          </select>
+        </div>
+      </div>
+      <label style="margin-top:16px;">Shipping method</label>
+      <div class="row"><input id="ship-standard" type="radio" name="ship" value="Standard" data-price="5" checked />
+        <label for="ship-standard">Standard (3–5 days) — $5.00</label></div>
+      <div class="row"><input id="ship-express" type="radio" name="ship" value="Express" data-price="12" />
+        <label for="ship-express">Express (1–2 days) — $12.00</label></div>
+      <div class="actions">
+        <button class="ghost" type="button" id="back-to-cart">Back</button>
+        <button type="button" id="to-payment" data-testid="to-payment">Continue to payment</button>
+      </div>
+    </section>
+
+    <!-- Step 3: payment -->
+    <section class="card" id="step-payment" data-testid="step-payment" hidden>
+      <h2>Payment</h2>
+      <p class="sub" style="margin-bottom:4px;">Demo checkout — no real charge is made.</p>
+      <label for="cardName">Cardholder name</label>
+      <input id="cardName" type="text" autocomplete="off" placeholder="Nora M. Okafor" />
+      <label for="cardNumber">Card number</label>
+      <input id="cardNumber" type="text" autocomplete="off" placeholder="4242 4242 4242 4242" />
+      <div class="totals">
+        <div class="line"><span>Items</span><span id="pay-items">$24.00</span></div>
+        <div class="line"><span>Shipping</span><span id="pay-shipping">$5.00</span></div>
+        <div class="line total"><span>Order total</span><span id="order-total" data-testid="order-total">$29.00</span></div>
+      </div>
+      <div class="actions">
+        <button class="ghost" type="button" id="back-to-shipping">Back</button>
+        <button type="button" id="place-order" data-testid="place-order">Place order</button>
+      </div>
+    </section>
+
+    <!-- Step 4: confirmation -->
+    <section class="card" id="step-confirm" hidden>
+      <div class="confirm" data-testid="order-confirmation">
+        <div class="big">☕ Order confirmed</div>
+        <p id="confirm-line"></p>
+        <div class="order-summary" data-testid="order-summary"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    const PRICE = 24;
+    let discountPct = 0;
+    const fmt = (n) => '$' + n.toFixed(2);
+    const subtotal = () => PRICE * Number($('qty').value);
+    const discounted = () => subtotal() * (1 - discountPct / 100);
+    const shipPrice = () => Number(document.querySelector('input[name="ship"]:checked').dataset.price);
+
+    function renderCart() {
+      $('subtotal').textContent = fmt(subtotal());
+      $('discount').textContent = discountPct ? `−${discountPct}% (${fmt(subtotal() - discounted())})` : '—';
+      $('cart-total').textContent = fmt(discounted());
+    }
+    $('qty').addEventListener('change', renderCart);
+    $('apply-promo').addEventListener('click', () => {
+      const code = $('promo').value.trim().toUpperCase();
+      const note = $('promo-note');
+      if (code === 'ROAST10') {
+        discountPct = 10;
+        note.textContent = 'Promo ROAST10 applied — 10% off your beans.';
+        note.className = 'promo-note show';
+      } else {
+        discountPct = 0;
+        note.textContent = code ? `"${code}" isn't a valid code.` : 'Enter a promo code first.';
+        note.className = 'promo-note bad show';
+      }
+      renderCart();
+    });
+
+    function show(step) {
+      ['cart', 'shipping', 'payment', 'confirm'].forEach((s, i) => {
+        $(`step-${s}`).hidden = s !== step;
+        const pill = $(`pill-${i + 1}`);
+        if (pill) pill.className = 'step-pill' +
+          (s === step ? ' active' : (['cart','shipping','payment'].indexOf(step) > i || step === 'confirm' ? ' done' : ''));
+      });
+    }
+    $('to-shipping').addEventListener('click', () => show('shipping'));
+    $('back-to-cart').addEventListener('click', () => show('cart'));
+    $('to-payment').addEventListener('click', () => {
+      $('pay-items').textContent = fmt(discounted());
+      $('pay-shipping').textContent = fmt(shipPrice());
+      $('order-total').textContent = fmt(discounted() + shipPrice());
+      show('payment');
+    });
+    $('back-to-shipping').addEventListener('click', () => show('shipping'));
+    $('place-order').addEventListener('click', () => {
+      const name = $('shipName').value.trim() || 'friend';
+      const qty = $('qty').value;
+      const method = document.querySelector('input[name="ship"]:checked').value;
+      const total = fmt(discounted() + shipPrice());
+      $('confirm-line').textContent = `Thanks, ${name} — order #NW-2107 is roasting.`;
+      $('confirm-line').innerHTML = esc($('confirm-line').textContent);
+      document.querySelector('[data-testid="order-summary"]').innerHTML =
+        `<strong>Order #NW-2107</strong><br>` +
+        `${esc(qty)} × Midnight Ember (12 oz)${discountPct ? ` · promo ROAST10 (−${discountPct}%)` : ''}<br>` +
+        `Ships ${esc(method)} to ${esc($('address').value.trim())}, ${esc($('city').value.trim())}, ${esc($('country').value)}<br>` +
+        `Paid <strong>${total}</strong> with card ending ${esc(($('cardNumber').value.trim().slice(-4)) || '0000')}`;
+      show('confirm');
+    });
+  </script>
+</body>
+</html>

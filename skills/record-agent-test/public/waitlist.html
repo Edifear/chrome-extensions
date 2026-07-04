@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumen — Join the waitlist</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+           font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: linear-gradient(160deg,#fdf6ec,#f3e8ff 60%,#e0f2fe); color:#1f2430; padding:24px; }
+    .card { width:100%; max-width:440px; background:#fff; border-radius:18px; padding:36px 34px;
+            box-shadow:0 24px 70px rgba(80,60,20,.16); }
+    h1 { margin:0 0 6px; font-size:26px; letter-spacing:-.02em; }
+    p.sub { margin:0 0 22px; color:#6b7280; font-size:14.5px; line-height:1.5; }
+    label { display:block; font-size:13px; font-weight:600; margin:16px 0 6px; color:#374151; }
+    input { width:100%; padding:11px 13px; border-radius:10px; border:1.5px solid #d8dce4;
+            font-size:15px; font-family:inherit; }
+    input:focus { outline:none; border-color:#8b5cf6; box-shadow:0 0 0 3px rgba(139,92,246,.18); }
+    button { width:100%; margin-top:24px; padding:13px; border:0; border-radius:10px; cursor:pointer;
+             background:#7c3aed; color:#fff; font-weight:700; font-size:15px; }
+    button:hover { background:#6d28d9; }
+    .banner { display:none; margin-top:20px; padding:14px 16px; border-radius:10px;
+              background:#ecfdf5; border:1px solid #6ee7b7; color:#065f46; font-size:14px; line-height:1.55; }
+    .banner.show { display:block; }
+    .count { text-align:center; margin-top:18px; color:#9ca3af; font-size:12.5px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Lumen</h1>
+    <p class="sub">The calm home for your team's notes. Early access opens soon — grab a spot.</p>
+
+    <form id="waitlist-form" novalidate>
+      <label for="name">Full name</label>
+      <input id="name" name="name" type="text" autocomplete="off" placeholder="Ada Lovelace" />
+
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="off" placeholder="ada@example.com" />
+
+      <button type="submit" data-testid="join-waitlist">Join the waitlist</button>
+    </form>
+
+    <div class="banner" id="banner" data-testid="waitlist-banner" role="status" aria-live="polite"></div>
+    <div class="count" data-testid="waitlist-count">2,741 people ahead of you</div>
+  </div>
+
+  <script>
+    const form = document.getElementById('waitlist-form');
+    const banner = document.getElementById('banner');
+    const count = document.querySelector('[data-testid="waitlist-count"]');
+    const esc = (s) => s.replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      if (!name || !email) { banner.className = 'banner show'; banner.style.background = '#fef2f2';
+        banner.style.borderColor = '#fca5a5'; banner.style.color = '#991b1b';
+        banner.textContent = 'Please enter both your name and email.'; return; }
+      banner.style.cssText = '';
+      banner.className = 'banner show';
+      banner.innerHTML = '<strong>You’re on the list, ' + esc(name) + '!</strong> ' +
+        'We’ll email ' + esc(email) + ' when your invite is ready.';
+      count.textContent = '2,742 people ahead of you';
+      form.reset();
+    });
+  </script>
+</body>
+</html>

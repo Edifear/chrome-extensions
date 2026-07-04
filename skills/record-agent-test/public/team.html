@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acme — Team Workspace</title>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --ok:#22c55e; --border:#334155; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: radial-gradient(1200px 600px at 50% -10%, #1e293b, var(--bg)); color: var(--ink);
+           min-height:100vh; padding:40px 24px; display:flex; justify-content:center; }
+    .page { width:100%; max-width:760px; }
+    header.page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    h1 { margin:0 0 4px; font-size:24px; }
+    h2 { margin:0; font-size:20px; }
+    p.sub { margin:0; color:var(--muted); font-size:14px; }
+    .pill { display:inline-block; padding:2px 10px; border-radius:999px; border:1px solid var(--border);
+            color:var(--muted); font-size:12px; margin-left:8px; vertical-align:2px; }
+
+    button { padding:11px 18px; border:0; border-radius:10px; cursor:pointer;
+             background:var(--accent); color:#03263a; font-weight:700; font-size:14px; }
+    button:hover { filter:brightness(1.07); }
+    button.secondary { background:transparent; color:var(--ink); border:1px solid var(--border); }
+    button.secondary:hover { background:#0b1220; filter:none; }
+
+    /* Success banner */
+    .banner { display:none; margin:0 0 16px; padding:14px 16px; border-radius:10px;
+              border:1px solid rgba(34,197,94,.5); background:rgba(34,197,94,.10); color:#bbf7d0;
+              font-size:14px; line-height:1.5; }
+    .banner.show { display:block; }
+    .banner .banner-title { font-weight:700; color:#dcfce7; }
+
+    /* Members table */
+    .card { background:var(--card); border:1px solid var(--border); border-radius:16px;
+            padding:20px 22px; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+    table { width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
+    th { text-align:left; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em;
+         padding:8px 10px; border-bottom:1px solid var(--border); }
+    td { padding:10px; border-bottom:1px solid #24324a; }
+    tr:last-child td { border-bottom:0; }
+    .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:600; }
+    .tag.admin  { background:rgba(56,189,248,.15); color:#7dd3fc; }
+    .tag.editor { background:rgba(168,85,247,.15); color:#d8b4fe; }
+    .tag.viewer { background:rgba(148,163,184,.15); color:#cbd5e1; }
+    .tag.pending { background:rgba(234,179,8,.15); color:#fde047; }
+    .tag.active  { background:rgba(34,197,94,.15); color:#86efac; }
+
+    /* Form controls */
+    label { display:block; font-size:13px; font-weight:600; margin:14px 0 6px; color:#cbd5e1; }
+    input[type=text], input[type=email], input[type=date], select, textarea {
+      width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
+      background:#0b1220; color:var(--ink); font-size:14px; font-family:inherit; }
+    input:focus, select:focus, textarea:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
+    textarea { min-height:70px; resize:vertical; }
+    fieldset { border:1px solid var(--border); border-radius:9px; margin:14px 0 0; padding:10px 12px; }
+    legend { font-size:13px; font-weight:600; color:#cbd5e1; padding:0 6px; }
+    .row { display:flex; align-items:center; gap:8px; margin:6px 0; }
+    .row label { margin:0; font-weight:400; color:var(--ink); }
+    .check { display:flex; align-items:center; gap:10px; margin-top:14px; }
+    .check label { margin:0; font-weight:400; }
+    .field-error { display:none; margin:6px 0 0; color:#fca5a5; font-size:12.5px; }
+    .field-error.show { display:block; }
+    input.invalid { border-color:#ef4444; }
+    input.invalid:focus { outline-color:#ef4444; }
+    .actions { display:flex; gap:10px; margin-top:22px; }
+    .actions button { flex:1; }
+
+    /* Modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(2,6,23,.72); backdrop-filter:blur(2px);
+                     display:flex; align-items:center; justify-content:center; padding:24px; z-index:50; }
+    .modal-overlay[hidden] { display:none; }
+    .modal { width:100%; max-width:520px; max-height:90vh; overflow:auto; background:var(--card);
+             border:1px solid var(--border); border-radius:16px; padding:24px 28px;
+             box-shadow:0 24px 70px rgba(0,0,0,.55); }
+    .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .modal-head p.sub { margin:4px 0 0; }
+    .icon-btn { padding:6px 10px; font-size:18px; line-height:1; background:transparent;
+                color:var(--muted); border:1px solid var(--border); border-radius:8px; }
+    .icon-btn:hover { background:#0b1220; color:var(--ink); filter:none; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="page-head">
+      <div>
+        <h1>Rocket team<span class="pill" data-testid="member-count">3 members</span></h1>
+        <p class="sub">Manage who has access to the Rocket workspace.</p>
+      </div>
+      <button type="button" id="open-invite" data-testid="open-invite">Invite member</button>
+    </header>
+
+    <div class="banner" id="invite-banner" data-testid="invite-banner" role="status" aria-live="polite"></div>
+
+    <section class="card">
+      <h2>Members</h2>
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Team</th><th>Access</th><th>Status</th></tr>
+        </thead>
+        <tbody id="members-body" data-testid="members-table">
+          <tr data-testid="member-row-1">
+            <td>Marie Curie</td><td>marie@acme.dev</td><td>Platform</td>
+            <td><span class="tag admin">Admin</span></td><td><span class="tag active">Active</span></td>
+          </tr>
+          <tr data-testid="member-row-2">
+            <td>Alan Turing</td><td>alan@acme.dev</td><td>Research</td>
+            <td><span class="tag editor">Editor</span></td><td><span class="tag active">Active</span></td>
+          </tr>
+          <tr data-testid="member-row-3">
+            <td>Katherine Johnson</td><td>katherine@acme.dev</td><td>Flight Ops</td>
+            <td><span class="tag viewer">Viewer</span></td><td><span class="tag active">Active</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Invite modal -->
+  <div class="modal-overlay" id="modal-overlay" data-testid="invite-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <div>
+          <h2 id="modal-title">Invite a member</h2>
+          <p class="sub">They'll get an email with a link to join Rocket.</p>
+        </div>
+        <button type="button" class="icon-btn" id="close-invite" data-testid="close-invite" aria-label="Close">&times;</button>
+      </div>
+
+      <form id="invite-form" novalidate>
+        <label for="inviteName">Full name</label>
+        <input id="inviteName" name="inviteName" type="text" autocomplete="off" placeholder="Grace Hopper"
+               aria-describedby="name-error" />
+        <p class="field-error" id="name-error" data-testid="name-error" role="alert" aria-live="polite"></p>
+
+        <label for="inviteEmail">Work email</label>
+        <input id="inviteEmail" name="inviteEmail" type="email" autocomplete="off" placeholder="grace@acme.dev"
+               aria-describedby="invite-email-error" />
+        <p class="field-error" id="invite-email-error" data-testid="invite-email-error" role="alert" aria-live="polite"></p>
+
+        <label for="team">Team</label>
+        <select id="team" name="team">
+          <option value="">Select a team…</option>
+          <option value="platform">Platform</option>
+          <option value="research">Research</option>
+          <option value="flight-ops">Flight Ops</option>
+          <option value="design">Design</option>
+        </select>
+
+        <fieldset>
+          <legend>Access level</legend>
+          <div class="row">
+            <input id="access-viewer" type="radio" name="access" value="viewer" checked />
+            <label for="access-viewer">Viewer — can browse and comment</label>
+          </div>
+          <div class="row">
+            <input id="access-editor" type="radio" name="access" value="editor" />
+            <label for="access-editor">Editor — can create and edit</label>
+          </div>
+          <div class="row">
+            <input id="access-admin" type="radio" name="access" value="admin" />
+            <label for="access-admin">Admin — full workspace control</label>
+          </div>
+        </fieldset>
+
+        <label for="startDate">Start date</label>
+        <input id="startDate" name="startDate" type="date" />
+
+        <label for="note">Personal note (included in the invite email)</label>
+        <textarea id="note" name="note" placeholder="Welcome aboard!"></textarea>
+
+        <div class="check">
+          <input id="onboarding" name="onboarding" type="checkbox" checked />
+          <label for="onboarding">Enroll in the onboarding program</label>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="secondary" id="cancel-invite" data-testid="cancel-invite">Cancel</button>
+          <button type="submit" id="send-invite">Send invite</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const overlay = document.getElementById('modal-overlay');
+    const openBtn = document.getElementById('open-invite');
+    const closeBtn = document.getElementById('close-invite');
+    const cancelBtn = document.getElementById('cancel-invite');
+    const form = document.getElementById('invite-form');
+    const banner = document.getElementById('invite-banner');
+    const membersBody = document.getElementById('members-body');
+    const memberCount = document.querySelector('[data-testid="member-count"]');
+
+    const nameInput = document.getElementById('inviteName');
+    const emailInput = document.getElementById('inviteEmail');
+    const nameError = document.getElementById('name-error');
+    const emailError = document.getElementById('invite-email-error');
+
+    const TEAM_LABELS = { platform:'Platform', research:'Research', 'flight-ops':'Flight Ops', design:'Design' };
+    const ACCESS_LABELS = { viewer:'Viewer', editor:'Editor', admin:'Admin' };
+
+    function openModal() { overlay.hidden = false; nameInput.focus(); }
+    function closeModal() { overlay.hidden = true; openBtn.focus(); }
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) closeModal(); });
+
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    function setFieldError(input, errorEl, message) {
+      errorEl.textContent = message;
+      errorEl.classList.toggle('show', !!message);
+      input.classList.toggle('invalid', !!message);
+      if (message) input.setAttribute('aria-invalid', 'true');
+      else input.removeAttribute('aria-invalid');
+    }
+    function validate() {
+      const nameMsg = nameInput.value.trim() ? '' : 'Full name is required.';
+      const emailVal = emailInput.value.trim();
+      const emailMsg = !emailVal ? 'Work email is required.'
+        : !EMAIL_RE.test(emailVal) ? 'Enter a valid email address.' : '';
+      setFieldError(nameInput, nameError, nameMsg);
+      setFieldError(emailInput, emailError, emailMsg);
+      return !nameMsg && !emailMsg;
+    }
+    nameInput.addEventListener('input', () => {
+      if (nameInput.classList.contains('invalid')) validate();
+    });
+    emailInput.addEventListener('input', () => {
+      if (emailInput.classList.contains('invalid')) validate();
+    });
+
+    function esc(s) {
+      return s.replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!validate()) { (nameInput.classList.contains('invalid') ? nameInput : emailInput).focus(); return; }
+
+      const data = new FormData(form);
+      const name = data.get('inviteName').trim();
+      const email = data.get('inviteEmail').trim();
+      const team = TEAM_LABELS[data.get('team')] || '—';
+      const access = data.get('access');
+      const accessLabel = ACCESS_LABELS[access] || 'Viewer';
+      const onboarding = data.get('onboarding') ? ' They were enrolled in onboarding.' : '';
+
+      const row = document.createElement('tr');
+      const rowIndex = membersBody.children.length + 1;
+      row.setAttribute('data-testid', 'member-row-' + rowIndex);
+      row.innerHTML =
+        '<td>' + esc(name) + '</td><td>' + esc(email) + '</td><td>' + esc(team) + '</td>' +
+        '<td><span class="tag ' + esc(access) + '">' + esc(accessLabel) + '</span></td>' +
+        '<td><span class="tag pending">Invited</span></td>';
+      membersBody.appendChild(row);
+      memberCount.textContent = rowIndex + ' members';
+
+      banner.innerHTML = '<span class="banner-title">Invite sent to ' + esc(name) + ' (' + esc(email) + ').</span> ' +
+        'They joined the ' + esc(team) + ' team as ' + esc(accessLabel) + '.' + esc(onboarding);
+      banner.classList.add('show');
+
+      form.reset();
+      closeModal();
+    });
+  </script>
+</body>
+</html>

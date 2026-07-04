@@ -1,0 +1,15 @@
+{
+  "name": "agent-flow-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agent Flow Studio — records agent-driven Playwright tests + human-like demo videos. Lives inside the record-agent-test Claude Code plugin.",
+  "scripts": {
+    "serve": "node server.mjs",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "playwright": "1.61.1"
+  }
+}

@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>record-agent-test · how the skill works</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --bg2:#eef2f7; --panel:#ffffff; --panel2:#f3f6fb;
+    --line:#e4e9f1; --line2:#d4dce8;
+    --ink:#16213a; --muted:#5a6677; --faint:#94a0b3;
+    --agent:#0284c7;   /* blue   — Claude Code driving over CDP   */
+    --rec:#e11d48;     /* rose   — the recorder capturing events  */
+    --out:#0f9d6b;     /* green  — the generated test / success   */
+    --amber:#d97706;   /* amber  — the goal                       */
+    --cast:#7c3aed;    /* violet — the optional screencast        */
+    --mono:ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans:system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.55; -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(1100px 620px at 80% -8%, rgba(2,132,199,.06), transparent 60%),
+      radial-gradient(900px 600px at 6% 10%, rgba(225,29,72,.04), transparent 55%),
+      linear-gradient(transparent 0 39px, rgba(40,60,95,.05) 39px 40px),
+      linear-gradient(90deg, transparent 0 39px, rgba(40,60,95,.05) 39px 40px);
+    background-size:auto,auto,40px 40px,40px 40px;
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:0 26px; position:relative;}
+
+  /* ---------- header ---------- */
+  header{padding:72px 0 30px;}
+  .kicker{font-family:var(--mono); font-size:12px; letter-spacing:.28em; text-transform:uppercase; color:var(--agent); display:flex; align-items:center; gap:12px;}
+  .recdot{width:9px; height:9px; border-radius:50%; background:var(--rec); box-shadow:0 0 0 0 rgba(225,29,72,.5); animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(225,29,72,.5);}70%{box-shadow:0 0 0 9px rgba(225,29,72,0);}100%{box-shadow:0 0 0 0 rgba(225,29,72,0);}}
+  h1{font-family:var(--sans); font-weight:800; font-size:clamp(38px,6.4vw,72px); line-height:1.02; letter-spacing:-.022em; margin:20px 0 0;}
+  h1 .mono{font-family:var(--mono); font-weight:600; font-size:.36em; letter-spacing:-.01em; color:var(--agent); display:block; margin-bottom:8px;}
+  .lede{max-width:660px; margin:22px 0 0; font-size:18px; color:#3a4660;}
+  .lede b{color:var(--ink); font-weight:600;}
+  .tagline{font-family:var(--mono); font-size:13px; color:var(--muted); margin-top:22px; display:flex; gap:10px; flex-wrap:wrap;}
+  .tagline span{border:1px solid var(--line2); border-radius:999px; padding:5px 13px; background:var(--panel);}
+  .tagline span b{color:var(--ink);}
+
+  /* ---------- section scaffolding ---------- */
+  section{padding:44px 0; border-top:1px solid var(--line);}
+  .stag{font-family:var(--mono); font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:var(--faint);}
+  h2{font-family:var(--sans); font-weight:750; font-size:clamp(25px,3.6vw,34px); letter-spacing:-.015em; margin:8px 0 6px;}
+  .sublede{color:var(--muted); max-width:760px; margin:0 0 26px; font-size:16px;}
+  em{font-style:normal; color:var(--ink); font-weight:600;}
+
+  /* ---------- the schematic ---------- */
+  .schematic{background:linear-gradient(180deg,#ffffff,#f4f7fb); border:1px solid var(--line2); border-radius:20px; padding:18px; box-shadow:0 12px 34px rgba(20,33,58,.07);}
+  .schematic svg{width:100%; height:auto; display:block;}
+  .legend{display:flex; gap:20px; flex-wrap:wrap; font-family:var(--mono); font-size:12px; color:var(--muted); padding:14px 6px 4px;}
+  .legend i{display:inline-block; width:22px; height:3px; border-radius:2px; vertical-align:middle; margin-right:8px;}
+  .node-fo{font-family:var(--sans);}
+  .nd{border-radius:12px; height:100%; padding:13px 15px; display:flex; flex-direction:column; gap:4px; background:#ffffff;}
+  .nd .tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;}
+  .nd .ttl{font-family:var(--sans); font-weight:700; font-size:16px; line-height:1.12; color:var(--ink);}
+  .nd .sub{font-family:var(--mono); font-size:11px; color:var(--muted); line-height:1.45;}
+  .nd.agent{border:1.5px solid var(--agent); box-shadow:0 2px 16px rgba(2,132,199,.12);} .nd.agent .tag{color:var(--agent);}
+  .nd.page{border:1.5px solid #c1cddf;} .nd.page .tag{color:#5a6677;}
+  .nd.lis{border:1.5px solid var(--rec);} .nd.lis .tag{color:var(--rec);}
+  .nd.srv{border:1.5px solid #ccd5e1;} .nd.srv .tag{color:var(--faint);}
+  .nd.out{border:1.5px solid var(--out); box-shadow:0 2px 16px rgba(15,157,107,.12);} .nd.out .tag{color:var(--out);}
+  .nd.cast{border:1.5px solid var(--cast); box-shadow:0 2px 16px rgba(124,58,237,.12);} .nd.cast .tag{color:var(--cast);}
+  .nd.goal{border:1px dashed var(--line2); background:#fbfcff;} .nd.goal .tag{color:var(--amber);}
+  .wlabel{font-family:var(--mono); font-size:11px; fill:var(--muted);}
+  .wlabel.cy{fill:#0369a1;} .wlabel.co{fill:#be123c;} .wlabel.gn{fill:#047857;} .wlabel.vi{fill:#6d28d9;}
+
+  /* ---------- phase rail ---------- */
+  .rail{display:grid; gap:0;}
+  .phase{display:grid; grid-template-columns:60px 1fr; gap:22px; padding:6px 0;}
+  .phase .gut{position:relative; display:flex; flex-direction:column; align-items:center;}
+  .phase .num{font-family:var(--mono); font-weight:600; font-size:14px; width:44px; height:44px; border-radius:50%; display:grid; place-items:center; border:1.5px solid var(--line2); background:var(--panel); color:var(--ink); z-index:2;}
+  .phase .stem{flex:1; width:2px; background:linear-gradient(var(--line2),transparent); margin-top:4px;}
+  .phase:last-child .stem{display:none;}
+  .phase.p1 .num{border-color:var(--agent); color:var(--agent);}
+  .phase.p2 .num{border-color:var(--amber); color:var(--amber);}
+  .phase.p3 .num{border-color:var(--rec); color:var(--rec);}
+  .phase.p4 .num{border-color:var(--cast); color:var(--cast);}
+  .phase.p5 .num{border-color:var(--out); color:var(--out);}
+  .pcard{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 22px; margin-bottom:16px; box-shadow:0 4px 14px rgba(20,33,58,.04);}
+  .pcard h3{font-family:var(--sans); font-weight:700; font-size:19px; margin:0 0 4px; display:flex; align-items:baseline; gap:12px; flex-wrap:wrap;}
+  .pcard h3 code{font-family:var(--mono); font-size:13px; font-weight:500; color:var(--agent); background:#e7f3fb; border:1px solid #c8e4f6; padding:3px 9px; border-radius:7px;}
+  .pcard p{margin:8px 0 0; color:#46526a; font-size:15px;}
+  .pcard ul{margin:12px 0 0; padding:0; list-style:none; display:grid; gap:9px;}
+  .pcard li{position:relative; padding-left:24px; color:var(--muted); font-size:14.5px;}
+  .pcard li::before{content:"→"; position:absolute; left:0; color:var(--faint); font-family:var(--mono);}
+  .pcard li b{color:var(--ink); font-weight:600;}
+  code.k{font-family:var(--mono); font-size:12.5px; color:#1b2740; background:#eef2f8; border:1px solid var(--line2); border-radius:6px; padding:2px 7px;}
+  code.kc{color:#075985; background:#e3f1fb; border-color:#bfe2f5;}
+  code.kr{color:#9f1239; background:#fde7ec; border-color:#f6c7d3;}
+  code.kg{color:#065f46; background:#e3f6ee; border-color:#bfe8d6;}
+  code.kv{color:#5b21b6; background:#f1ebfd; border-color:#ddd0f7;}
+
+  /* ---------- loop diagram ---------- */
+  .loop{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; position:relative;}
+  .lstep{background:var(--panel); border:1px solid var(--line2); border-radius:16px; padding:18px 16px; position:relative; overflow:hidden; box-shadow:0 4px 14px rgba(20,33,58,.04);}
+  .lstep::after{content:""; position:absolute; top:0; left:0; height:3px; width:100%; background:var(--accent,var(--agent));}
+  .lstep .n{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.18em;}
+  .lstep h4{font-family:var(--sans); font-weight:700; font-size:17px; margin:6px 0 6px; color:var(--ink);}
+  .lstep p{margin:0; font-size:13.5px; color:var(--muted);}
+  .lstep .ar{position:absolute; right:-9px; top:50%; transform:translateY(-50%); font-family:var(--mono); color:var(--faint); z-index:3; font-size:18px;}
+  .loopback{margin-top:14px; text-align:center; font-family:var(--mono); font-size:12.5px; color:#a15c06; letter-spacing:.04em;}
+  .loopback span{border:1px dashed rgba(217,119,6,.45); border-radius:999px; padding:6px 16px; background:#fdf6ec;}
+
+  /* ---------- command grid ---------- */
+  .cmds{display:grid; grid-template-columns:repeat(auto-fill,minmax(248px,1fr)); gap:12px;}
+  .cmd{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:15px 16px; transition:border-color .2s, transform .2s, box-shadow .2s; box-shadow:0 3px 12px rgba(20,33,58,.04);}
+  .cmd:hover{border-color:var(--agent); transform:translateY(-2px); box-shadow:0 8px 20px rgba(2,132,199,.12);}
+  .cmd .c{font-family:var(--mono); font-size:13px; color:var(--agent); font-weight:600;}
+  .cmd .c .flag{color:var(--muted); font-weight:400;}
+  .cmd p{margin:8px 0 0; font-size:13.5px; color:var(--muted);}
+  .cmd.term .c{color:var(--rec);} .cmd.term:hover{border-color:var(--rec); box-shadow:0 8px 20px rgba(225,29,72,.12);}
+
+  /* ---------- fidelity ---------- */
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:14px;}
+  .fcard{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px; box-shadow:0 3px 12px rgba(20,33,58,.04);}
+  .fcard .h{font-family:var(--mono); font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--amber); margin-bottom:6px;}
+  .fcard.cast .h{color:var(--cast);}
+  .fcard h4{font-family:var(--sans); font-weight:700; font-size:16.5px; margin:0 0 6px;}
+  .fcard p{margin:0; font-size:14px; color:var(--muted);}
+  .fcard p code, .fcard code{font-family:var(--mono); font-size:12px; color:#1b2740; background:#eef2f8; border:1px solid var(--line2); border-radius:5px; padding:1px 5px;}
+  .fcard ul{margin:0; padding:0; list-style:none; display:grid; gap:9px;}
+  .fcard li{position:relative; padding-left:20px; color:var(--muted); font-size:14px;}
+  .fcard li::before{content:"·"; position:absolute; left:4px; color:var(--cast); font-weight:700;}
+  .fcard li b{color:var(--ink); font-weight:600;}
+
+  /* ---------- coordination files ---------- */
+  .files{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px;}
+  .file{display:flex; gap:12px; align-items:flex-start; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent,var(--line2)); border-radius:10px; padding:12px 14px;}
+  .file .fn{font-family:var(--mono); font-size:12.5px; color:var(--ink);}
+  .file .fd{font-size:13px; color:var(--muted); margin-top:2px;}
+  .file code{font-family:var(--mono); font-size:11px; color:#1b2740; background:#eef2f8; border-radius:4px; padding:1px 4px;}
+
+  /* ---------- code block ---------- */
+  .code{background:#f4f7fb; border:1px solid var(--line2); border-radius:14px; overflow:hidden; box-shadow:0 8px 24px rgba(20,33,58,.06);}
+  .code .bar{display:flex; align-items:center; gap:8px; padding:10px 16px; border-bottom:1px solid var(--line); background:#eaeff7;}
+  .code .bar .dots{display:flex; gap:6px;} .code .bar .dots i{width:11px; height:11px; border-radius:50%;}
+  .code .bar .fn{font-family:var(--mono); font-size:12px; color:var(--muted); margin-left:8px;}
+  .code pre{margin:0; padding:18px 20px; overflow:auto; font-family:var(--mono); font-size:13px; line-height:1.7; color:var(--ink);}
+  .code pre code{white-space:pre;}
+  .t-kw{color:#0369a1;} .t-fn{color:#b45309;} .t-st{color:#047857;} .t-cm{color:#94a0b3; font-style:italic;} .t-pn{color:#475569;}
+  .hl{background:rgba(15,157,107,.10); display:block; margin:0 -20px; padding:0 20px; border-left:2px solid var(--out);}
+
+  /* ---------- screencast ---------- */
+  .cast-wrap{display:grid; grid-template-columns:1.08fr .92fr; gap:22px; align-items:start;}
+  .screen{border:1px solid var(--line2); border-radius:14px; overflow:hidden; background:#0b1220; box-shadow:0 16px 40px rgba(20,33,58,.14);}
+  .screen video{display:block; width:100%; height:auto; background:#0b1220;}
+  .screen .cap{font-family:var(--mono); font-size:11.5px; color:var(--muted); padding:9px 13px; background:var(--panel2); border-top:1px solid var(--line); display:flex; gap:8px; align-items:center;}
+  .screen .cap .rd{width:8px; height:8px; border-radius:50%; background:var(--rec);}
+  @media(max-width:760px){ .cast-wrap{grid-template-columns:1fr;} }
+
+  /* ---------- before/after ---------- */
+  .ba{display:grid; grid-template-columns:1fr auto 1fr; gap:18px; align-items:stretch;}
+  .ba .col{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:0 4px 14px rgba(20,33,58,.04);}
+  .ba .col.old{background:#f7f8fa;}
+  .ba .col.new{border-color:var(--out);}
+  .ba .lbl{font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; margin-bottom:10px;}
+  .ba .old .lbl{color:var(--faint);} .ba .new .lbl{color:var(--out);}
+  .ba .col h4{font-family:var(--sans); font-weight:700; font-size:18px; margin:0 0 10px;}
+  .ba .col ul{margin:0; padding:0; list-style:none; display:grid; gap:8px;}
+  .ba .col li{padding-left:22px; position:relative; font-size:14px; color:var(--muted);}
+  .ba .old li::before{content:"×"; position:absolute; left:0; color:var(--rec); font-weight:700;}
+  .ba .new li::before{content:"✓"; position:absolute; left:0; color:var(--out); font-weight:700;}
+  .ba .col code{font-family:var(--mono); font-size:11px; color:#1b2740; background:#eef2f8; border-radius:4px; padding:1px 5px;}
+  .ba .arrow{display:grid; place-items:center; font-family:var(--mono); color:var(--amber); font-size:26px;}
+  @media(max-width:720px){ .ba{grid-template-columns:1fr;} .ba .arrow{transform:rotate(90deg);} .loop{grid-template-columns:1fr 1fr;} .lstep .ar{display:none;} }
+
+  footer{padding:38px 0 80px; border-top:1px solid var(--line); color:var(--faint); font-family:var(--mono); font-size:12.5px;}
+  footer code{color:var(--agent);}
+
+  /* reveal on scroll */
+  .reveal{opacity:0; transform:translateY(16px); transition:opacity .7s cubic-bezier(.2,.7,.2,1), transform .7s cubic-bezier(.2,.7,.2,1);}
+  .reveal.in{opacity:1; transform:none;}
+  @media(prefers-reduced-motion:reduce){ .reveal{opacity:1; transform:none; transition:none;} .recdot{animation:none;} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- ===================== HEADER ===================== -->
+  <header>
+    <div class="kicker"><span class="recdot"></span>&nbsp;Claude Code skill · live recording flow</div>
+    <h1><span class="mono">record-agent-test</span>The agent performs the test.<br>The recorder writes it.</h1>
+    <p class="lede">A background <b>recorder</b> owns a real Chromium and streams a Playwright test as the page is driven. <b>Claude Code itself</b> drives that page over CDP — one subcommand per action — so the generated <code class="k">*.spec.ts</code> covers exactly what was asked. No API key, no embedded model loop. Optionally, the test is replayed and filmed into a screencast.</p>
+    <div class="tagline">
+      <span><b>Claude Code</b> is the agent</span>
+      <span><b>The recorder</b> owns the browser</span>
+      <span><b>CDP</b> is the wire</span>
+      <span>DOM events → <b>test code</b>, live</span>
+      <span>+ optional <b>screencast</b></span>
+    </div>
+  </header>
+
+  <!-- ===================== SCHEMATIC ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 01 — system</div>
+    <h2>The wiring</h2>
+    <p class="sublede">Two processes, one browser. The agent <em>connects to</em> the recorder-owned browser and acts on the page; the recorder listens to the page's DOM events and doesn't care which CDP client caused them — so every action becomes a recorded test step. The generated spec can then be replayed and filmed.</p>
+
+    <div class="schematic">
+      <svg viewBox="0 0 1080 640" role="img" aria-label="Architecture schematic of the record-agent-test skill">
+        <defs>
+          <marker id="arr-co" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e11d48"/></marker>
+          <marker id="arr-gn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f9d6b"/></marker>
+          <marker id="arr-am" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#d97706"/></marker>
+          <marker id="arr-vi" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/></marker>
+        </defs>
+
+        <!-- recorder container -->
+        <rect x="428" y="64" width="448" height="486" rx="18" fill="rgba(225,29,72,.04)" stroke="rgba(225,29,72,.4)" stroke-width="1.5" stroke-dasharray="6 6"/>
+        <text x="448" y="92" class="wlabel co" style="font-size:12px; letter-spacing:.14em;">RECORDER PROCESS · recorder.mjs</text>
+        <g transform="translate(820,78)"><circle r="6" fill="#e11d48"><animate attributeName="opacity" values="1;.25;1" dur="1.6s" repeatCount="indefinite"/></circle><text x="14" y="4" class="wlabel co" style="font-size:11px;">REC</text></g>
+
+        <!-- WIRES -->
+        <!-- goal -> agent -->
+        <path d="M165,150 L165,212" fill="none" stroke="#d97706" stroke-width="1.6" stroke-dasharray="4 5" marker-end="url(#arr-am)" opacity=".7"/>
+        <!-- CDP wire agent <-> page -->
+        <path d="M305,300 C 370,300 392,212 462,206" fill="none" stroke="#0284c7" stroke-width="2"/>
+        <path d="M462,232 C 392,238 372,316 305,322" fill="none" stroke="#0284c7" stroke-width="1.4" opacity=".45" stroke-dasharray="2 6"/>
+        <text x="330" y="200" class="wlabel cy" style="font-size:12px;">CDP · :9333</text>
+        <text x="322" y="352" class="wlabel cy" style="font-size:10.5px; opacity:.8;">snapshot back</text>
+        <!-- server -> page -->
+        <path d="M305,512 C 405,512 405,300 462,276" fill="none" stroke="#b6c2d4" stroke-width="1.6" stroke-dasharray="5 5"/>
+        <text x="318" y="470" class="wlabel" style="font-size:10.5px;">serves /index.html</text>
+        <!-- page -> recorder (DOM tap) -->
+        <path d="M650,318 L650,356" fill="none" stroke="#e11d48" stroke-width="2" marker-end="url(#arr-co)"/>
+        <text x="664" y="342" class="wlabel co" style="font-size:10.5px;">DOM events</text>
+        <!-- recorder -> output -->
+        <path d="M846,430 L918,430" fill="none" stroke="#0f9d6b" stroke-width="2" marker-end="url(#arr-gn)"/>
+        <text x="700" y="528" class="wlabel gn" style="font-size:11px;">writes test code live →</text>
+        <!-- output -> screencast (optional, replay) -->
+        <path d="M991,510 L991,524" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#arr-vi)"/>
+        <text x="836" y="566" class="wlabel vi" style="font-size:10.5px;">replay + film →</text>
+
+        <!-- animated pulses -->
+        <circle r="4.5" fill="#0284c7"><animateMotion dur="1.9s" repeatCount="indefinite" path="M305,300 C 370,300 392,212 462,206"/></circle>
+        <circle r="4.5" fill="#0284c7" opacity=".8"><animateMotion dur="1.9s" begin=".65s" repeatCount="indefinite" path="M305,300 C 370,300 392,212 462,206"/></circle>
+        <circle r="3.4" fill="#38bdf8"><animateMotion dur="1.9s" begin="1.3s" repeatCount="indefinite" path="M305,300 C 370,300 392,212 462,206"/></circle>
+        <circle r="3" fill="#7dd3fc" opacity=".7"><animateMotion dur="2.3s" repeatCount="indefinite" path="M462,232 C 392,238 372,316 305,322"/></circle>
+        <circle r="4" fill="#e11d48"><animateMotion dur="1.2s" repeatCount="indefinite" path="M650,318 L650,356"/></circle>
+        <circle r="4.5" fill="#0f9d6b"><animateMotion dur="1.5s" repeatCount="indefinite" path="M846,430 L918,430"/></circle>
+        <circle r="3.6" fill="#34d399" opacity=".85"><animateMotion dur="1.5s" begin=".5s" repeatCount="indefinite" path="M846,430 L918,430"/></circle>
+        <circle r="3.4" fill="#8b5cf6"><animateMotion dur="1.6s" repeatCount="indefinite" path="M991,510 L991,524"/></circle>
+
+        <!-- NODES -->
+        <foreignObject x="30" y="86" width="270" height="64"><div xmlns="http://www.w3.org/1999/xhtml" class="node-fo"><div class="nd goal"><div class="tag">▷ user goal</div><div class="sub">“test the email validation, then submit”</div></div></div></foreignObject>
+
+        <foreignObject x="30" y="212" width="275" height="180"><div xmlns="http://www.w3.org/1999/xhtml" class="node-fo" style="height:100%"><div class="nd agent"><div class="tag">the agent</div><div class="ttl">Claude&nbsp;Code</div><div class="sub">reads each snapshot · decides the next action · runs one&nbsp;subcommand<br><br>node session.mjs &lt;cmd&gt;</div></div></div></foreignObject>
+
+        <foreignObject x="30" y="468" width="275" height="92"><div xmlns="http://www.w3.org/1999/xhtml" class="node-fo" style="height:100%"><div class="nd srv"><div class="tag">static server</div><div class="ttl" style="font-size:14px;">server.mjs</div><div class="sub">serves the form @ localhost:5188</div></div></div></foreignObject>
+
+        <foreignObject x="462" y="118" width="382" height="160"><div xmlns="http://www.w3.org/1999/xhtml" class="node-fo" style="height:100%"><div class="nd page"><div class="tag">owned by the recorder</div><div class="ttl">Chromium&nbsp;+&nbsp;form page</div><div class="sub">launchPersistentContext(… --remote-debugging-port=9333)<br>the recorder's injected listeners watch this page</div></div></div></foreignObject>
+
+        <foreignObject x="462" y="358" width="382" height="150"><div xmlns="http://www.w3.org/1999/xhtml" class="node-fo" style="height:100%"><div class="nd lis"><div class="tag">codegen recorder</div><div class="ttl">context._enableRecorder()</div><div class="sub">turns DOM events → Playwright steps, regardless of which CDP client triggered them</div></div></div></foreignObject>
+
+        <foreignObject x="918" y="360" width="146" height="148"><div xmlns="http://www.w3.org/1999/xhtml" class="node-fo" style="height:100%"><div class="nd out"><div class="tag">output</div><div class="ttl" style="font-size:14px;">tests/<br>generated<wbr>.spec.ts</div><div class="sub">streamed live</div></div></div></foreignObject>
+
+        <foreignObject x="918" y="526" width="146" height="100"><div xmlns="http://www.w3.org/1999/xhtml" class="node-fo" style="height:100%"><div class="nd cast"><div class="tag">optional</div><div class="ttl" style="font-size:13.5px;">recordings/<br>*.webm</div><div class="sub">screencast</div></div></div></foreignObject>
+      </svg>
+
+      <div class="legend">
+        <span><i style="background:#0284c7"></i>agent → browser, over CDP (actions &amp; snapshots)</span>
+        <span><i style="background:#e11d48"></i>recorder taps DOM events</span>
+        <span><i style="background:#0f9d6b"></i>generated test, written live</span>
+        <span><i style="background:#d97706"></i>your goal</span>
+        <span><i style="background:#7c3aed"></i>optional screencast (WebM)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PHASES ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 02 — flow</div>
+    <h2>The whole run, phase by phase</h2>
+    <p class="sublede">One command boots the rig, Claude Code drives the loop, one command tears it down and prints the test — and optionally films it. Everything coordinates through small files in <code class="k">.run/</code>.</p>
+
+    <div class="rail">
+      <!-- phase 1 -->
+      <div class="phase p1">
+        <div class="gut"><div class="num">01</div><div class="stem"></div></div>
+        <div>
+          <div class="pcard">
+            <h3>Start the rig <code>session.mjs start</code></h3>
+            <p>Boots the moving parts in the background and hands the agent a first look at the page.</p>
+            <ul>
+              <li>Makes <code class="k">.run/</code>, clears stale <code class="k">recorder-ready</code> / <code class="k">stop</code> / <code class="k">assertion.json</code> / <code class="k">session.json</code>.</li>
+              <li>If the form URL isn't already served, spawns <code class="k">server.mjs</code> <b>detached</b> on <code class="kc">:5188</code> (skips it for a real app that's already up).</li>
+              <li>Spawns <code class="k">recorder.mjs</code> <b>detached</b>: launches Chromium with <code class="kc">--remote-debugging-port=9333</code>, calls <code class="kr">context._enableRecorder()</code>, opens the form, writes <code class="k">.run/recorder-ready</code>.</li>
+              <li>Waits for ready, records PIDs in <code class="k">session.json</code>, <b>connects over CDP</b>, and prints a <b>snapshot</b> of every control + <code class="k">[data-testid]</code> region.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- phase 2 -->
+      <div class="phase p2">
+        <div class="gut"><div class="num">02</div><div class="stem"></div></div>
+        <div>
+          <div class="pcard">
+            <h3>Drive the page — the agent loop</h3>
+            <p>Claude Code reads the snapshot, decides the next move from the goal, and runs <b>one subcommand per action</b>. Each connects over CDP, performs a high-fidelity Playwright action, settles, disconnects (closing only its CDP client — the recorder keeps the browser), and prints a fresh snapshot. Repeat until the goal is met.</p>
+            <ul>
+              <li><b>Do exactly what's asked.</b> “Only the email field” touches only the email field; no submit unless implied.</li>
+              <li><b>Remember the values typed</b> — they become the test's real, input-derived assertion.</li>
+              <li>Each step is captured by the recorder the instant its DOM event fires → <code class="kg">generated.spec.ts</code> grows live.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- phase 3 -->
+      <div class="phase p3">
+        <div class="gut"><div class="num">03</div><div class="stem"></div></div>
+        <div>
+          <div class="pcard">
+            <h3>Finish &amp; assert <code>session.mjs finish</code></h3>
+            <p>Declares the success criterion and tears the rig down cleanly.</p>
+            <ul>
+              <li>If given <code class="kr">--assert-testid</code> / <code class="kr">--assert-contains</code>, writes <code class="k">.run/assertion.json</code>.</li>
+              <li>Writes <code class="k">.run/stop</code>. The recorder waits ~900ms (so the throttled writer flushes the last action), <code class="kr">context.close()</code> finalizes the test, then it exits.</li>
+              <li>Waits for the recorder PID to die, then <b>enriches</b> the raw recording via <code class="k">postprocess.mjs</code>: a real title + the assertion as <code class="kg">expect(…).toBeVisible()</code> / <code class="kg">.toContainText(…)</code>.</li>
+              <li>Stops the server, prints the test. With <code class="k">RUN_GENERATED=1</code>, runs <code class="k">npx playwright test</code> right away.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- phase 4 — screencast -->
+      <div class="phase p4">
+        <div class="gut"><div class="num">04</div><div class="stem"></div></div>
+        <div>
+          <div class="pcard" style="border-color:#e3d6fb;">
+            <h3>Optional: film it <code style="color:var(--cast); background:#f1ebfd; border-color:#ddd0f7;">RECORD_SCREENCAST=1</code></h3>
+            <p>Replays the generated spec into an annotated WebM — a mouse cursor that animates between action points and a title overlay on each step, paced by <code class="kv">SCREENCAST_SLOWMO</code>.</p>
+            <ul>
+              <li>Runs a <b>copy</b> of the spec with the screencast fixture swapped in — the real <code class="k">tests/generated.spec.ts</code> stays untouched.</li>
+              <li>Uses <code class="kv">page.screencast.start()</code> + <code class="kv">showActions({ cursor: 'pointer' })</code>; saved to <code class="k">recordings/*.webm</code>.</li>
+              <li>The replay also <b>verifies the test passes</b>, so it doubles as the run.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- phase 5 — result -->
+      <div class="phase p5">
+        <div class="gut"><div class="num">05</div></div>
+        <div>
+          <div class="pcard" style="border-color:#bfe8d6;">
+            <h3>Result — a passing, asserted test (and a video)</h3>
+            <p>A scoped <code class="kg">tests/generated.spec.ts</code> exists, green, asserting an <b>input-derived</b> outcome — so it fails if the form silently drops input rather than passing on a static string — plus, if requested, a <code class="kv">recordings/*.webm</code> walkthrough.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== LOOP ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 03 — the inner loop</div>
+    <h2>Read → Decide → Act → Record</h2>
+    <p class="sublede">This is the cycle that replaces the old embedded API loop. Claude Code <em>is</em> the loop; the subcommands are its tools.</p>
+    <div class="loop">
+      <div class="lstep" style="--accent:var(--agent)"><div class="n">READ</div><h4>Snapshot</h4><p>Parse the printed controls, values &amp; visible <code style="font-family:var(--mono);font-size:11px;color:var(--agent)">data-testid</code> regions.</p><span class="ar">→</span></div>
+      <div class="lstep" style="--accent:var(--amber)"><div class="n">DECIDE</div><h4>Claude picks</h4><p>Choose the next control to touch from the goal. Nothing more.</p><span class="ar">→</span></div>
+      <div class="lstep" style="--accent:var(--agent)"><div class="n">ACT</div><h4>One subcommand</h4><p>fill / select / toggle / click — a tuned Playwright action over CDP.</p><span class="ar">→</span></div>
+      <div class="lstep" style="--accent:var(--rec)"><div class="n">RECORD</div><h4>Recorder captures</h4><p>The DOM event becomes a test step, appended live.</p></div>
+    </div>
+    <div class="loopback"><span>↺ repeat until the goal is satisfied, then → finish</span></div>
+  </section>
+
+  <!-- ===================== COMMANDS ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 04 — vocabulary</div>
+    <h2>The subcommands</h2>
+    <p class="sublede">The whole agent surface — <code class="k">node .claude/skills/record-agent-test/scripts/session.mjs &lt;cmd&gt;</code>.</p>
+    <div class="cmds">
+      <div class="cmd"><div class="c">start</div><p>Boot server + recorder, print the first snapshot.</p></div>
+      <div class="cmd"><div class="c">snapshot</div><p>Re-read the live page anytime.</p></div>
+      <div class="cmd"><div class="c">fill <span class="flag">--label --value</span></div><p>Type into a text / email / textarea field.</p></div>
+      <div class="cmd"><div class="c">select <span class="flag">--label --option</span></div><p>Choose an option in a <code style="font-family:var(--mono);font-size:11px">&lt;select&gt;</code>.</p></div>
+      <div class="cmd"><div class="c">toggle <span class="flag">--label</span></div><p>Click a radio button or checkbox.</p></div>
+      <div class="cmd"><div class="c">click <span class="flag">--name</span></div><p>Click a button (e.g. submit).</p></div>
+      <div class="cmd term"><div class="c">finish <span class="flag">--summary --assert-*</span></div><p>Stop, bake the assertion, enrich, print (+ optionally run / film).</p></div>
+      <div class="cmd term"><div class="c">stop</div><p>Tear down with no assertion (abort / cleanup).</p></div>
+    </div>
+  </section>
+
+  <!-- ===================== FIDELITY ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 05 — why these exact actions</div>
+    <h2>Recorder-fidelity rules</h2>
+    <p class="sublede">Driving a recorder-attached page <em>programmatically</em> hits sharp edges a human mouse never does. The subcommands encode the fixes so the recording stays clean.</p>
+    <div class="grid2">
+      <div class="fcard"><div class="h">the wire</div><h4>Open a CDP port, not the pipe</h4><p><code>--remote-debugging-port=9333</code> lets a separate process <code>connectOverCDP</code> and share the very browser the recorder owns.</p></div>
+      <div class="fcard"><div class="h">radios / checkboxes</div><h4>Plain <code>.click()</code>, not <code>.check()</code></h4><p>The recorder delays the default action, so <code>.check()</code>'s built-in verify reads a stale <code>false</code> and throws. A click is recorded <em>as</em> <code>.check()</code>.</p></div>
+      <div class="fcard"><div class="h">dropdowns</div><h4><code>.click()</code> then <code>.selectOption()</code></h4><p><code>selectOption</code> alone sets the value with no pointer event, so the recorder mis-anchors to the previously focused control. The click anchors it.</p></div>
+      <div class="fcard"><div class="h">text fields</div><h4>Plain <code>.fill()</code></h4><p>Anchors correctly on its own — no pre-click needed.</p></div>
+      <div class="fcard"><div class="h">assertions</div><h4>Injected, not recorded</h4><p>Codegen records actions, not assertions. The agent's declared success criterion is baked in by <code>postprocess.mjs</code> as an <code>expect</code>.</p></div>
+      <div class="fcard"><div class="h">the file writer</div><h4>The Inspector writes the file</h4><p>Only the real RecorderApp flushes <code>outputFile</code>. Headless runs just hide its window via <code>PWTEST_CLI_HEADLESS=1</code>.</p></div>
+    </div>
+  </section>
+
+  <!-- ===================== FILES ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 06 — coordination</div>
+    <h2>Everything talks through <code style="font-family:var(--mono);font-size:.7em;color:var(--agent)">.run/</code></h2>
+    <p class="sublede">Small files let the detached processes and the agent stay in sync across separate invocations (gitignored).</p>
+    <div class="files">
+      <div class="file" style="--accent:var(--agent)"><div><div class="fn">recorder-ready</div><div class="fd">recorder → agent: “browser is up, CDP open.”</div></div></div>
+      <div class="file" style="--accent:var(--rec)"><div><div class="fn">stop</div><div class="fd">finish → recorder: “flush &amp; close the test.”</div></div></div>
+      <div class="file" style="--accent:var(--out)"><div><div class="fn">assertion.json</div><div class="fd">the declared <code>{ testId, containsText }</code>.</div></div></div>
+      <div class="file" style="--accent:var(--amber)"><div><div class="fn">session.json</div><div class="fd">server/recorder PIDs, CDP port, output path.</div></div></div>
+      <div class="file" style="--accent:var(--cast)"><div><div class="fn">screencast/flow.screencast.spec.ts</div><div class="fd">temp fixture-wrapped copy filmed by the screencast pass.</div></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== GENERATED TEST ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 07 — output</div>
+    <h2>What lands on disk</h2>
+    <p class="sublede">The steps are recorded verbatim — note the first one opens the modal that holds the form. The highlighted lines are the assertion the agent declared: it checks the <b>name it typed</b>, echoed back into the page's status region.</p>
+    <div class="code">
+      <div class="bar"><div class="dots"><i style="background:#e11d48"></i><i style="background:#d97706"></i><i style="background:#0f9d6b"></i></div><span class="fn">tests/generated.spec.ts</span></div>
+<pre><code><span class="t-kw">import</span> { test, expect } <span class="t-kw">from</span> <span class="t-st">'@playwright/test'</span>;
+
+test(<span class="t-st">"fills and submits the signup form, then sees the created account confirmation"</span>, <span class="t-kw">async</span> ({ page }) =&gt; {
+  <span class="t-kw">await</span> page.<span class="t-fn">goto</span>(<span class="t-st">'http://localhost:5188/'</span>);
+  <span class="t-kw">await</span> page.<span class="t-fn">getByTestId</span>(<span class="t-st">'open-form'</span>).<span class="t-fn">click</span>();          <span class="t-cm">// open the modal</span>
+  <span class="t-kw">await</span> page.<span class="t-fn">getByRole</span>(<span class="t-st">'textbox'</span>, { name: <span class="t-st">'Full name'</span> }).<span class="t-fn">fill</span>(<span class="t-st">'Ada Lovelace'</span>);
+  <span class="t-kw">await</span> page.<span class="t-fn">getByRole</span>(<span class="t-st">'textbox'</span>, { name: <span class="t-st">'Email'</span> }).<span class="t-fn">fill</span>(<span class="t-st">'ada@example.com'</span>);
+  <span class="t-kw">await</span> page.<span class="t-fn">getByLabel</span>(<span class="t-st">'Role'</span>).<span class="t-fn">selectOption</span>(<span class="t-st">'engineer'</span>);
+  <span class="t-kw">await</span> page.<span class="t-fn">getByRole</span>(<span class="t-st">'radio'</span>, { name: <span class="t-st">'+ years'</span> }).<span class="t-fn">check</span>();
+  <span class="t-kw">await</span> page.<span class="t-fn">getByRole</span>(<span class="t-st">'textbox'</span>, { name: <span class="t-st">'Anything we should know?'</span> }).<span class="t-fn">fill</span>(<span class="t-st">'Excited to join the team!'</span>);
+  <span class="t-kw">await</span> page.<span class="t-fn">getByRole</span>(<span class="t-st">'checkbox'</span>, { name: <span class="t-st">'Subscribe to the product'</span> }).<span class="t-fn">check</span>();
+  <span class="t-kw">await</span> page.<span class="t-fn">getByRole</span>(<span class="t-st">'button'</span>, { name: <span class="t-st">'Create account'</span> }).<span class="t-fn">click</span>();
+<span class="hl">
+  <span class="t-cm">// Asserted automatically: the agent considered the run successful once this appeared.</span>
+  <span class="t-kw">await</span> <span class="t-fn">expect</span>(page.<span class="t-fn">getByTestId</span>(<span class="t-st">"form-status"</span>)).<span class="t-fn">toBeVisible</span>();
+  <span class="t-kw">await</span> <span class="t-fn">expect</span>(page.<span class="t-fn">getByTestId</span>(<span class="t-st">"form-status"</span>)).<span class="t-fn">toContainText</span>(<span class="t-st">"Account created for Ada Lovelace"</span>);
+</span>});</code></pre>
+    </div>
+  </section>
+
+  <!-- ===================== SCREENCAST ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 08 — optional</div>
+    <h2>Film the test — an annotated screencast</h2>
+    <p class="sublede">Set <code class="kv">RECORD_SCREENCAST=1</code> before <code class="k">finish</code> and the generated spec is replayed slowly and recorded to <code class="k">recordings/*.webm</code> — with a mouse cursor that animates between action points and a title overlay on each step (Playwright's <code class="k">page.screencast</code> API).</p>
+    <div class="cast-wrap">
+      <div class="screen">
+        <video controls loop muted playsinline preload="metadata" poster="skill-flow-screencast.png">
+          <source src="skill-flow-screencast.webm" type="video/webm">
+          Your browser can't play this WebM — find it under <code>recordings/</code>.
+        </video>
+        <div class="cap"><span class="rd"></span> recordings/…confirmation.webm · 1280×800 · VP8 · slow-mo</div>
+      </div>
+      <div>
+        <div class="fcard cast">
+          <div class="h">how the frame is built</div>
+          <ul>
+            <li><b>start</b> — <code>screencast.start({ path, size })</code> records the WebM to disk.</li>
+            <li><b>decorate</b> — <code>showActions({ cursor: 'pointer' })</code> draws the pointer that travels between action points + a per-step title.</li>
+            <li><b>pace</b> — <code>SCREENCAST_SLOWMO</code> (default 500ms) spaces the actions so each is legible; a raw run is ~1–2s.</li>
+            <li><b>safe</b> — a copy of the spec is filmed; the real <code>generated.spec.ts</code> never changes, and the replay verifies it passes.</li>
+          </ul>
+        </div>
+        <div class="code" style="margin-top:14px">
+          <div class="bar"><div class="dots"><i style="background:#e11d48"></i><i style="background:#d97706"></i><i style="background:#0f9d6b"></i></div><span class="fn">shell</span></div>
+<pre><code><span class="t-cm"># add RECORD_SCREENCAST=1 to finish</span>
+RECORD_SCREENCAST=<span class="t-st">1</span> node session.mjs finish \
+  --assert-testid <span class="t-st">form-status</span> \
+  --assert-contains <span class="t-st">"Account created for Ada"</span></code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== BEFORE / AFTER ===================== -->
+  <section class="reveal">
+    <div class="stag">/ 09 — what changed</div>
+    <h2>It replaces <code style="font-family:var(--mono);font-size:.62em;color:var(--rec)">llm-agent.mjs</code></h2>
+    <p class="sublede">Same recorder, same fidelity tricks. The only thing that moved is <em>where the brain lives</em>.</p>
+    <div class="ba">
+      <div class="col old">
+        <div class="lbl">before · llm-agent.mjs</div>
+        <h4>Embedded API loop</h4>
+        <ul>
+          <li>Calls the Anthropic API in a tool-use loop</li>
+          <li>Needs <code>ANTHROPIC_API_KEY</code></li>
+          <li>Tools defined in code: read_page, fill_text…</li>
+          <li>A second model, separate from the session</li>
+        </ul>
+      </div>
+      <div class="arrow">⟶</div>
+      <div class="col new">
+        <div class="lbl">after · the skill</div>
+        <h4>Claude Code is the agent</h4>
+        <ul>
+          <li>The session's own reasoning drives the loop</li>
+          <li>No API key, no embedded model call</li>
+          <li>Tools = the <code>session.mjs</code> subcommands</li>
+          <li>Point <code>FORM_URL</code> at any real app</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div>record-agent-test · <code>.claude/skills/record-agent-test/</code></div>
+    <div style="margin-top:8px;">try it → <code>node .claude/skills/record-agent-test/scripts/session.mjs start</code> · drive · <code>finish --assert-testid … --assert-contains …</code> · add <code>RECORD_SCREENCAST=1</code> to film it</div>
+  </footer>
+
+</div>
+
+<script>
+  const io = new IntersectionObserver((entries)=>{
+    for(const e of entries){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }
+  }, { threshold:.12 });
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acme — Demo Signup Form</title>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --ok:#22c55e; --border:#334155; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+           background: radial-gradient(1200px 600px at 50% -10%, #1e293b, var(--bg)); color: var(--ink);
+           min-height:100vh; display:flex; align-items:center; justify-content:center; padding:32px; }
+    .card { width:100%; max-width:520px; background:var(--card); border:1px solid var(--border);
+            border-radius:16px; padding:28px 28px 24px; box-shadow:0 20px 60px rgba(0,0,0,.45); }
+    h1 { margin:0 0 4px; font-size:22px; }
+    h2 { margin:0; font-size:20px; }
+    p.sub { margin:0 0 20px; color:var(--muted); font-size:14px; }
+    label { display:block; font-size:13px; font-weight:600; margin:14px 0 6px; color:#cbd5e1; }
+    input[type=text], input[type=email], select, textarea {
+      width:100%; padding:10px 12px; border-radius:9px; border:1px solid var(--border);
+      background:#0b1220; color:var(--ink); font-size:14px; }
+    input:focus, select:focus, textarea:focus { outline:2px solid var(--accent); outline-offset:1px; border-color:transparent; }
+    textarea { min-height:80px; resize:vertical; }
+    fieldset { border:1px solid var(--border); border-radius:9px; margin:14px 0 0; padding:10px 12px; }
+    legend { font-size:13px; font-weight:600; color:#cbd5e1; padding:0 6px; }
+    .row { display:flex; align-items:center; gap:8px; margin:6px 0; font-weight:400; }
+    .row label { margin:0; font-weight:400; color:var(--ink); }
+    .check { display:flex; align-items:center; gap:10px; margin-top:14px; }
+    .check label { margin:0; font-weight:400; }
+    button { margin-top:22px; width:100%; padding:12px 16px; border:0; border-radius:10px; cursor:pointer;
+             background:var(--accent); color:#03263a; font-weight:700; font-size:15px; }
+    button:hover { filter:brightness(1.07); }
+    button.secondary { background:transparent; color:var(--ink); border:1px solid var(--border); }
+    button.secondary:hover { background:#0b1220; filter:none; }
+
+    /* Main-page status region */
+    .status { margin:0 0 4px; padding:16px; border-radius:10px; border:1px dashed var(--border);
+              background:#0b1220; color:var(--muted); font-size:14px; line-height:1.5; }
+    .status.done { border-style:solid; border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.10); color:#bbf7d0; }
+    .status .status-title { font-weight:700; color:#dcfce7; }
+    .status dl { margin:8px 0 0; display:grid; grid-template-columns:auto 1fr; gap:2px 12px; }
+    .status dt { color:var(--muted); }
+    .status dd { margin:0; color:#e2e8f0; }
+
+    /* Modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(2,6,23,.72); backdrop-filter:blur(2px);
+                     display:flex; align-items:center; justify-content:center; padding:24px; z-index:50; }
+    .modal-overlay[hidden] { display:none; }
+    .modal { width:100%; max-width:520px; max-height:90vh; overflow:auto; background:var(--card);
+             border:1px solid var(--border); border-radius:16px; padding:24px 28px 24px;
+             box-shadow:0 24px 70px rgba(0,0,0,.55); }
+    .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    .modal-head p.sub { margin:4px 0 0; }
+    .icon-btn { width:auto; margin:0; padding:6px 10px; font-size:18px; line-height:1; background:transparent;
+                color:var(--muted); border:1px solid var(--border); border-radius:8px; }
+    .icon-btn:hover { background:#0b1220; color:var(--ink); filter:none; }
+
+    .field-error { display:none; margin:6px 0 0; color:#fca5a5; font-size:12.5px; }
+    .field-error.show { display:block; }
+    input.invalid { border-color:#ef4444; }
+    input.invalid:focus { outline-color:#ef4444; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Create your Acme account</h1>
+    <p class="sub">A demo flow recorded into a Playwright test by an agent.</p>
+
+    <div class="status" id="form-status" data-testid="form-status" role="status" aria-live="polite">
+      No account created yet. Click <strong>Fill data</strong> to get started.
+    </div>
+
+    <button type="button" id="open-form" data-testid="open-form">Fill data</button>
+  </main>
+
+  <!-- Modal holding the signup form -->
+  <div class="modal-overlay" id="modal-overlay" data-testid="form-modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <div>
+          <h2 id="modal-title">Your details</h2>
+          <p class="sub">Fill in the form and create your account.</p>
+        </div>
+        <button type="button" class="icon-btn" id="close-modal" data-testid="close-modal" aria-label="Close">&times;</button>
+      </div>
+
+      <form id="signup-form" novalidate>
+        <label for="fullName">Full name</label>
+        <input id="fullName" name="fullName" type="text" autocomplete="off" placeholder="Ada Lovelace" />
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="off" placeholder="ada@example.com"
+               aria-describedby="email-error" />
+        <p class="field-error" id="email-error" data-testid="email-error" role="alert" aria-live="polite"></p>
+
+        <label for="role">Role</label>
+        <select id="role" name="role">
+          <option value="">Select a role…</option>
+          <option value="engineer">Engineer</option>
+          <option value="designer">Designer</option>
+          <option value="pm">Product Manager</option>
+          <option value="qa">QA Engineer</option>
+        </select>
+
+        <fieldset>
+          <legend>Experience</legend>
+          <div class="row">
+            <input id="exp-junior" type="radio" name="experience" value="junior" />
+            <label for="exp-junior">0–2 years</label>
+          </div>
+          <div class="row">
+            <input id="exp-mid" type="radio" name="experience" value="mid" />
+            <label for="exp-mid">3–5 years</label>
+          </div>
+          <div class="row">
+            <input id="exp-senior" type="radio" name="experience" value="senior" />
+            <label for="exp-senior">6+ years</label>
+          </div>
+        </fieldset>
+
+        <label for="message">Anything we should know?</label>
+        <textarea id="message" name="message" placeholder="Tell us a bit about yourself…"></textarea>
+
+        <div class="check">
+          <input id="newsletter" name="newsletter" type="checkbox" />
+          <label for="newsletter">Subscribe to the product newsletter</label>
+        </div>
+
+        <button type="submit" id="submit">Create account</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('signup-form');
+    const status = document.getElementById('form-status');
+    const emailInput = document.getElementById('email');
+    const emailError = document.getElementById('email-error');
+
+    // Modal controls
+    const overlay = document.getElementById('modal-overlay');
+    const openBtn = document.getElementById('open-form');
+    const closeBtn = document.getElementById('close-modal');
+
+    const ROLE_LABELS = { engineer:'Engineer', designer:'Designer', pm:'Product Manager', qa:'QA Engineer' };
+    const EXP_LABELS = { junior:'0–2 years', mid:'3–5 years', senior:'6+ years' };
+
+    function openModal() {
+      overlay.hidden = false;
+      // Focus the first field for keyboard users.
+      document.getElementById('fullName').focus();
+    }
+    function closeModal() {
+      overlay.hidden = true;
+      openBtn.focus();
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    // Click on the dimmed backdrop (but not the dialog itself) closes the modal.
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) closeModal(); });
+
+    // --- Email validation (unchanged behaviour) ---
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Returns an error message if the email is invalid, or '' if it's valid.
+    function emailValidationMessage() {
+      const value = emailInput.value.trim();
+      if (!value) return 'Email is required.';
+      if (!EMAIL_RE.test(value)) return 'Enter a valid email address.';
+      return '';
+    }
+
+    function showEmailError(message) {
+      if (!message) return clearEmailError();
+      emailError.textContent = message;
+      emailError.classList.add('show');
+      emailInput.classList.add('invalid');
+      emailInput.setAttribute('aria-invalid', 'true');
+    }
+    function clearEmailError() {
+      emailError.textContent = '';
+      emailError.classList.remove('show');
+      emailInput.classList.remove('invalid');
+      emailInput.removeAttribute('aria-invalid');
+    }
+
+    // Live feedback: validate when the user leaves the field, and once it's
+    // marked invalid, re-check on every keystroke so the error clears as they fix it.
+    emailInput.addEventListener('blur', () => showEmailError(emailValidationMessage()));
+    emailInput.addEventListener('input', () => {
+      if (emailInput.classList.contains('invalid')) showEmailError(emailValidationMessage());
+    });
+
+    function renderStatus(data) {
+      const name = (data.get('fullName') || 'friend').toString().trim() || 'friend';
+      const email = (data.get('email') || '').toString().trim();
+      const role = ROLE_LABELS[data.get('role')] || '—';
+      const exp = EXP_LABELS[data.get('experience')] || '—';
+      const newsletter = data.get('newsletter') ? 'Yes' : 'No';
+      status.classList.add('done');
+      status.innerHTML =
+        '<div class="status-title">Account created for ' + name + '.</div>' +
+        '<dl>' +
+          '<dt>Email</dt><dd>' + (email || '—') + '</dd>' +
+          '<dt>Role</dt><dd>' + role + '</dd>' +
+          '<dt>Experience</dt><dd>' + exp + '</dd>' +
+          '<dt>Newsletter</dt><dd>' + newsletter + '</dd>' +
+        '</dl>';
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const message = emailValidationMessage();
+      if (message) {
+        showEmailError(message);
+        emailInput.focus();
+        return; // keep the modal open while the form is invalid
+      }
+      clearEmailError();
+      const data = new FormData(form);
+      renderStatus(data);   // reflect the submission on the main page
+      form.reset();
+      closeModal();         // hand focus back to the main page
+    });
+  </script>
+</body>
+</html>
