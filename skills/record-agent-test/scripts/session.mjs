@@ -57,7 +57,7 @@ function printResponse(res) {
 }
 
 function dieDeadSocket() {
-  console.error('[session] no live session — run: node .claude/skills/record-agent-test/scripts/session.mjs start');
+  console.error('[session] no live session — run: node ~/.claude/skills/record-agent-test/scripts/session.mjs start');
   process.exit(9);
 }
 

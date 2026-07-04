@@ -28,8 +28,12 @@ REASON=$(field reason)
 # "resume" means the conversation is saved to continue later — not really over.
 [ "$REASON" = "resume" ] && exit 0
 
-# Housekeeping: drop markers from sessions that died without firing SessionEnd.
+# Housekeeping: drop markers from sessions that died without firing SessionEnd,
+# and keep the log from growing unbounded (last ~200 lines once it passes 100 KB).
 find "$MARKER_DIR" -name '*.json' -mtime +7 -delete 2>/dev/null
+if [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 102400 ]; then
+  tail -n 200 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
+fi
 
 MARKER="$MARKER_DIR/$SESSION_ID.json"
 [ -f "$MARKER" ] || exit 0
