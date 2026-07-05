@@ -179,25 +179,28 @@ cd <worktree> && command md status     # healthy = "backend: :<port> OK"
 - Brief needs a non-core profile (temporal etc.) → restart with `--profile`.
 
 Then mint the session (needs the backend up — that's why it's at the join,
-seconds, not minutes):
+seconds, not minutes). **Decide WHO the session is for FIRST — the brief
+decides, not the mint default.** Flags are targeted per-user (ConfigCat), so
+the wrong user renders the PR's UI as absent, not broken:
+
+- Golden path depends on a flag (e.g. `medallion_2_0`) → the user is
+  `sergii@medallion.co` (that user has the flags). The default
+  `admin@medallion.co` does NOT; `--me` fails — the git email isn't in the
+  dev DB.
+- No flags in the brief → `admin@medallion.co` is fine.
+
+Then check-or-mint **for that user** — a passing `--check` alone is never
+enough (it verifies the session works, not who it's for), so the reuse
+condition includes the identity test:
 
 ```bash
-command md session status default --check --quiet || command md session mint
 AUTH=<worktree>/.auth/default
+WANT=<email the brief decided>
+command md session status default --check --quiet \
+  && [ "$(jq -r '.user.email' "$AUTH/session.json")" = "$WANT" ] \
+  || command md session mint --email "$WANT"
 node "$STUDIO/scripts/prepare-session.mjs" "$AUTH"
 ```
-
-**Pick the mint user by the brief's feature flags.** Flags are targeted
-per-user (ConfigCat), so the wrong user renders the PR's UI as absent, not
-broken:
-
-- Brief needs a flag (e.g. `medallion_2_0`) →
-  `command md session mint --email sergii@medallion.co` (that user has the
-  flags). The default `admin@medallion.co` does NOT; `--me` fails — the git
-  email isn't in the dev DB.
-- A passing `--check` is not enough here: it verifies the session works, not
-  who it's for. If `session.json`'s `user.email` isn't the flagged user,
-  re-mint with `--email` anyway.
 
 Exit 0 from `--check` means verified-working-now. `session.json`'s `baseUrl`
 carries the worktree's own backend port; the studio reads it automatically —
@@ -294,8 +297,10 @@ placeholder itself is kept (only overflow/throwaway worktrees get deleted).
   generated spec, which is fine — replay uses the same storageState, so the
   hint reappears there too and the click stays deterministic.
 - **Session died mid-run?** (snapshot suddenly shows the Auth0 login page):
-  `command md session mint`, then restart the studio session — the journal of
-  a dead run is preserved at `$STUDIO/.run/journal.prev.json`.
+  re-mint for the SAME user the run started with —
+  `command md session mint --email "$WANT"` — then restart the studio
+  session; a bare mint would silently swap a flagged user back to admin. The
+  journal of a dead run is preserved at `$STUDIO/.run/journal.prev.json`.
 
 ## Failure handling
 
