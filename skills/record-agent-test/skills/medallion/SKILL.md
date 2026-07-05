@@ -6,7 +6,8 @@ description: >-
   /record-agent-test:medallion with a GitHub PR link (explore the PR diff,
   prepare a worktree via `md from`, and record a demo of that change) or with a
   free-form goal like "search by npi in credentialing requests table" (record
-  that flow in the current or a freshly started worktree). Handles md
+  that flow in the plugin's persistent `record-agent-test` worktree, or the
+  current worktree if invoked from inside one). Handles md
   worktree/start/session prewarming, then drives the plugin's Agent Flow
   Studio end-to-end.
 ---
@@ -59,35 +60,76 @@ If it fails because the worktree exists, match the branch in
 running, follow with a background
 `MD_AUTO_YES=1 command md start --no-tty --worktree <name>`.
 
-**Register cleanup for worktrees YOU created.** If `md from` (or
-`md worktree new`) created the worktree this session — it did not exist in
-`md wt list` before — write a cleanup marker so the plugin's SessionEnd hook
-stops it when this session closes:
+**Register a cleanup marker for every worktree this session claims or
+creates.** The plugin's SessionEnd hook reads it, stops the worktree's md
+services when this session closes, and deletes the worktree if
+`"delete": true`:
 
 ```bash
 mkdir -p ~/.claude/skills/record-agent-test/state && printf '{"worktree":"%s","delete":false}\n' "<name>" \
   > ~/.claude/skills/record-agent-test/state/"$CLAUDE_CODE_SESSION_ID".json
 ```
 
-Set `"delete": true` only if the user called the worktree throwaway/temporary
-(delete runs without `--force`, so uncommitted changes still block it). Never
-register a worktree that already existed — those are shared.
+Marker rules by worktree kind:
+
+- **`record-agent-test` placeholder** → always write a marker, always
+  `"delete": false`. The hook stops md there at session end but never deletes
+  this worktree (it hard-refuses even if the marker says otherwise) — it is
+  permanent by design. The marker doubles as the busy signal other recording
+  sessions check.
+- **Overflow worktree** (created because the placeholder was busy — see goal
+  mode below) → `"delete": true`. Delete runs without `--force`, so
+  uncommitted changes still block it.
+- **PR/branch worktree `md from` created this session** (it did not exist in
+  `md wt list` before) → marker with `"delete": false`; `"delete": true` only
+  if the user called it throwaway/temporary.
+- **Pre-existing worktrees and the cwd worktree** → NO marker. Those are
+  shared or the user's own; leave them exactly as found.
 
 Always pass `--no-tty` when backgrounding `md start` — it keeps the mprocs
 supervisor alive without a controlling TTY (the agent-friendly alternative to
 `--new-tab`), and `MD_AUTO_YES=1` lets the preflight autofix run unattended.
 
 **Goal mode** — resolve the target instantly from `command md wt list --json`
-(cheap, foreground), then background only what's actually needed:
+(cheap, foreground), then background only what's actually needed. Core rule:
+**record only in a worktree we own — never borrow other worktrees.** A
+borrowed worktree may carry someone's half-done branch: the video demos the
+wrong code and the generated spec asserts against UI that doesn't exist on
+develop.
 
-1. cwd already inside `/Users/sergii/conductor/workspaces/medallion/<wt>` →
-   use it; if `"running": true`, Track A is already DONE.
-2. Else a `"running": true` worktree (prefer `md-session-test`, else the most
-   recently committed) → Track A is already DONE.
-3. Else background `MD_AUTO_YES=1 command md start --no-tty --worktree <name>`
-   on the most recently committed stopped worktree.
-4. Only if the user explicitly wants isolation: `command md worktree new`
-   (slow — deps install; say so before doing it).
+1. **cwd already inside `/Users/sergii/conductor/workspaces/medallion/<wt>`** →
+   use it as-is (explicit user intent — this is also how "record on my current
+   branch" works). If `"running": true`, Track A is already DONE. No cleanup
+   marker, no branch refresh — it's the user's tree.
+2. **Goal names a specific branch** → don't touch the placeholder; get an own
+   worktree for that branch like PR mode does:
+   `command md from "<branch-url>" --json`, or for a local branch
+   `command md worktree new <slug> --existing-branch --branch <branch> --json`
+   (background — deps install). Marker per the rules above (created this
+   session → `"delete": false`).
+3. **Otherwise use the plugin's persistent placeholder worktree
+   `record-agent-test`** (a permanent recording sandbox on its own branch off
+   develop — never deleted):
+   - In `md wt list` and **not busy** → claim it: write the marker
+     (`"delete": false`), refresh it to fresh develop —
+     `git -C <path> fetch origin develop && git -C <path> reset --hard origin/develop`
+     (safe: nothing but recordings ever happens here) — and if
+     `"running": false`, background
+     `MD_AUTO_YES=1 command md start --no-tty --worktree record-agent-test`.
+     If the refresh pulled in new migrations, apply them at the join (Step 2).
+   - Not in `md wt list` yet → create it once, in the background:
+     `command md worktree new record-agent-test --from-branch develop --json`
+     (slow — deps install; say so), then start as above. Write the marker.
+   - **Busy** → see below.
+4. **Busy check / overflow.** The placeholder counts as busy only when BOTH
+   hold: some OTHER session's marker (`$STUDIO/state/<other-session>.json`)
+   names `record-agent-test`, AND a studio session is actually live
+   (`cd $STUDIO && node $SESSION status` exits 0). Then — and only then —
+   create a throwaway overflow worktree:
+   `command md worktree new --from-branch develop --json` (md auto-picks a
+   name), marker `"delete": true`. A foreign marker WITHOUT a live studio is
+   stale (that session crashed before its SessionEnd hook fired): delete the
+   stale marker file and claim the placeholder normally.
 
 ### Track B — the Recording Brief (foreground, while A runs)
 
@@ -131,7 +173,9 @@ cd <worktree> && command md status     # healthy = "backend: :<port> OK"
 - Boot not healthy yet → wait on the background task, don't busy-poll.
 - Brief says the PR adds migrations or backend deps, and the worktree was
   already running → apply now: `git pull`, `command md db migrate`, restart
-  (`md stop` / background `md start --no-tty`).
+  (`md stop` / background `md start --no-tty`). Same if the placeholder's
+  develop refresh (Step 1) pulled in new migrations — skip the `git pull`,
+  the reset already updated the tree.
 - Brief needs a non-core profile (temporal etc.) → restart with `--profile`.
 
 Then mint the session (needs the backend up — that's why it's at the join,
@@ -185,6 +229,10 @@ node $SESSION start --auth-state $AUTH
 - The browser opens already authenticated on the app (baseUrl from the
   manifest). Brief names a deep route? Start there:
   `FORM_URL=http://localhost:<backend-port>/<route> node $SESSION start --auth-state $AUTH`
+- Landed on the wrong page anyway (the app redirects staff sessions to the
+  active org)? Don't stop/re-start — navigate the live session:
+  `node $SESSION goto --url http://localhost:<backend-port>/<route>`. The
+  navigation is journaled and lands in the spec as `page.goto(…)`.
 - Check the first snapshot against the brief's controls/testids; adjust the
   pre-drafted plan if the live UI disagrees (trust the snapshot, not the brief).
 - Follow the base skill's loop: single `click` for steps that reveal new UI →
@@ -212,10 +260,12 @@ Tell the user:
 - PR mode: 1–2 sentences tying what the video shows to the PR's change (worth
   pasting into the PR as a comment — offer to do it, don't do it unasked).
 
-Leave `md` services running (other agents/humans share them). Only stop a
-worktree you started if the user asks. Exception: a worktree you CREATED this
-session is already registered for auto-stop via the cleanup marker (Step 1) —
-mention in the report that it will be stopped when the session closes.
+Leave `md` services running for the user's own worktrees (cwd mode) — only
+stop those if asked. Any worktree this session registered a cleanup marker for
+(the `record-agent-test` placeholder, an overflow worktree, a PR worktree
+created this session) is auto-handled by the SessionEnd hook — mention in the
+report that its services stop when the session closes, and that the
+placeholder itself is kept (only overflow/throwaway worktrees get deleted).
 
 ## Medallion-specific driving rules
 

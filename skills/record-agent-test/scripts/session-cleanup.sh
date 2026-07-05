@@ -4,8 +4,12 @@
 #
 # No-op unless a marker exists for the ending session:
 #   <plugin-root>/state/<session_id>.json   {"worktree": "<name>", "delete": false}
-# The medallion skill writes the marker only for worktrees it created itself.
+# The medallion skill writes the marker for every worktree the session claimed:
+# the persistent record-agent-test placeholder, overflow worktrees, and PR
+# worktrees it created itself.
 #
+# The record-agent-test placeholder worktree is PERMANENT: it is always
+# stopped, never deleted, regardless of what the marker says.
 # Delete runs WITHOUT --force, so md refuses if the worktree has uncommitted
 # changes — the marker is best-effort, never data-destroying.
 # Always exits 0: cleanup failure must never surface as a hook error.
@@ -43,6 +47,11 @@ DELETE=$(python3 -c 'import json,sys; print("1" if json.load(open(sys.argv[1])).
 if [ -z "$WORKTREE" ]; then
   rm -f "$MARKER"
   exit 0
+fi
+
+# Hard guard: the persistent recording worktree is stop-only, never deleted.
+if [ "$WORKTREE" = "record-agent-test" ]; then
+  DELETE=0
 fi
 
 MD="$HOME/.local/bin/md"
