@@ -271,6 +271,42 @@ async function performAction(verb, args) {
   return entry;
 }
 
+// Codegen attributes a navigation within ~5 s of a click/press/fill to that
+// action (recorderSignalProcessor's signalThreshold) and emits no goto line —
+// postprocess.mjs re-injects it from the journal, so we don't wait the window
+// out. We DO wait a beat for the injected recorder's throttled capture to
+// flush, so navigating away can't lose the PRECEDING action.
+const CAPTURE_FLUSH_MS = 1000;
+
+async function performGoto(args) {
+  if (!args.url) throw new Error('goto needs --url');
+  let target;
+  try { target = new URL(String(args.url)); }
+  catch { throw new Error(`goto: not a valid absolute URL: ${JSON.stringify(args.url)}`); }
+  let warn = '';
+  try {
+    const sessionOrigin = new URL(cfg.formUrl).origin;
+    if (target.origin !== sessionOrigin) {
+      warn = `leaving the session origin (${sessionOrigin} → ${target.origin}) — ` +
+        `auth cookies/localStorage are origin-scoped and will NOT apply there`;
+    }
+  } catch {}
+  const sinceLast = Date.now() - state.lastActionAt;
+  if (state.lastActionAt && sinceLast < CAPTURE_FLUSH_MS) {
+    await sleep(CAPTURE_FLUSH_MS - sinceLast);
+  }
+  const started = process.hrtime.bigint();
+  await state.page.goto(target.href, { timeout: 30000 });
+  // Same settle the film pass uses; best-effort — busy apps may never go idle.
+  await state.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+  const ms = Math.round(Number(process.hrtime.bigint() - started) / 1e6);
+  state.lastActionAt = Date.now();
+  const entry = journalEntry({ verb: 'goto', url: target.href, ...(args.note ? { note: args.note } : {}), ms });
+  progress.phases.drive.steps += 1;
+  progress.phases.drive.ms += ms;
+  return { entry, warn };
+}
+
 async function performAssert(args) {
   if (!args.testid) throw new Error('assert needs --testid');
   const loc = state.page.getByTestId(args.testid);
@@ -296,7 +332,7 @@ async function performAssert(args) {
 }
 
 // ---------- verbs ----------
-const PLAN_VERBS = new Set(['fill', 'select', 'toggle', 'click', 'scene', 'assert']);
+const PLAN_VERBS = new Set(['fill', 'select', 'toggle', 'click', 'goto', 'scene', 'assert']);
 
 const verbs = {
   async ping() { return { result: 'pong' }; },
@@ -382,6 +418,16 @@ const verbs = {
     return { result: `clicked (${e.ms} ms)`, snapshot: await snap() };
   },
 
+  async goto(args) {
+    const { entry, warn } = await performGoto(args);
+    await writeJournal(); await saveProgress();
+    // Navigation replaces the whole page — a diff against the old one is noise.
+    return {
+      result: `navigated to ${entry.url} (${entry.ms} ms)` + (warn ? `\nWARNING: ${warn}` : ''),
+      snapshot: await snap({ full: true }),
+    };
+  },
+
   async scene(args) {
     if (!args.title) throw new Error('scene needs --title');
     journalEntry({ verb: 'scene', title: args.title, ...(args.desc ? { desc: args.desc } : {}) });
@@ -417,6 +463,9 @@ const verbs = {
         } else if (step.verb === 'assert') {
           const e = await performAssert(step);
           lines.push(`${i}: assert OK testid="${e.testid}"`);
+        } else if (step.verb === 'goto') {
+          const { entry, warn } = await performGoto(step);
+          lines.push(`${i}: goto ${entry.url} OK (${entry.ms} ms)${warn ? ` — WARNING: ${warn}` : ''}`);
         } else {
           const e = await performAction(step.verb, step);
           lines.push(`${i}: ${step.verb} OK (${e.ms} ms)`);
@@ -704,7 +753,7 @@ async function verifyFilmIntegrity(pkgDir) {
   if (!existsSync(scenesPath)) return 'scenes.json missing';
   if (!existsSync(path.join(pkgDir, 'recording.webm'))) return 'recording.webm missing';
   const scenes = JSON.parse(await readFile(scenesPath, 'utf8'));
-  const actions = state.journal.entries.filter((e) => ['fill', 'select', 'toggle', 'click'].includes(e.verb)).length;
+  const actions = state.journal.entries.filter((e) => ['fill', 'select', 'toggle', 'click', 'goto'].includes(e.verb)).length;
   const chapters = state.journal.entries.filter((e) => e.verb === 'scene').length + 2; // intro + outro
   const asserts = state.journal.entries.filter((e) => e.verb === 'assert').length;
   const expected = actions + chapters + asserts;

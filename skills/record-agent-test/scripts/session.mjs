@@ -117,7 +117,7 @@ async function cmdStart(flags) {
   }
   // `start` boots the static server + recorder and prints the first snapshot.
   await send('start', {}, 90000);
-  console.log('READY — drive the page with fill/select/toggle/click (or a `do` plan), then call finish.');
+  console.log('READY — drive the page with fill/select/toggle/click/goto (or a `do` plan), then call finish.');
 }
 
 async function main() {
@@ -130,6 +130,8 @@ async function main() {
     case 'select': return send('select', { label: f.label, option: f.option, note: f.note });
     case 'toggle': return send('toggle', { label: f.label, note: f.note });
     case 'click': return send('click', { name: f.name, selector: f.selector, text: f.text, note: f.note });
+    // goto may wait out codegen's 5 s navigation-attribution window + a slow load.
+    case 'goto': return send('goto', { url: f.url, note: f.note }, 60000);
     case 'scene': return send('scene', { title: f.title, desc: f.desc });
     case 'assert': return send('assert', { testid: f.testid, contains: f.contains, title: f.title }, 15000);
     case 'do': return send('do', { plan: f.plan }, 120000);
@@ -148,7 +150,7 @@ async function main() {
     case 'stop': return send('stop', {}, 60000);
     default:
       console.error(`Unknown command: ${cmd || '(none)'}\n` +
-        `Usage: session.mjs <start|snapshot|fill|select|toggle|click|scene|assert|do|status|finish|stop> [flags]`);
+        `Usage: session.mjs <start|snapshot|fill|select|toggle|click|goto|scene|assert|do|status|finish|stop> [flags]`);
       process.exit(2);
   }
 }

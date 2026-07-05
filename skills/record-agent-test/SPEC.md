@@ -169,8 +169,8 @@ session.mjs do --plan '[
 - Stops at the first failure; the response says which step index failed and why, plus a fresh
   full snapshot. Journal keeps the successful prefix.
 - Each step is a separate journal entry — the film still shows every action individually.
-- Allowed verbs inside a plan: `fill`, `select`, `toggle`, `click`, `scene`, `assert` (no nested
-  `do`, no `finish`).
+- Allowed verbs inside a plan: `fill`, `select`, `toggle`, `click`, `goto`, `scene`, `assert`
+  (no nested `do`, no `finish`).
 - Skill guidance: open/inspect steps stay single (`click` → read snapshot); form-filling bursts
   go through `do`. Typical flow: 3–4 agent turns instead of 9.
 
@@ -330,7 +330,8 @@ New / extended:
 | `do --plan '<json>'` | batch several verbs in one agent turn (§2.4) |
 | `scene --title "…" [--desc "…"]` | declare a chapter boundary (journal-only, instant) |
 | `assert --testid X [--contains "…"] [--title "…"]` | declare an assertion; the daemon verifies it live immediately (10 s wait, error + snapshot if it never holds) and journals it. Feeds both the spec enrichment and the film. |
-| `* --note "…"` | optional on `fill`/`select`/`toggle`/`click`: human copy for the video |
+| `goto --url "<url>"` | navigate the live session (deep link / recover from an app redirect). Journaled; guaranteed in the spec as `page.goto(…)` at its journal position (codegen's own record is matched when present, injected otherwise). Warns when leaving the session origin. |
+| `* --note "…"` | optional on `fill`/`select`/`toggle`/`click`/`goto`: human copy for the video |
 | `status` | pretty-print `.run/progress.json` (phase, step count, elapsed) |
 | `finish --flow <slug> [--summary "…"] [--no-film] [--no-frame-check]` | full pipeline (§5.1). `--flow` is kebab-cased (`[a-z0-9-]{1,48}`); default: slugified summary, else `flow-<yyyymmdd-hhmm>`. Existing `--assert-*` flags remain as sugar for a final `assert`. |
 

@@ -54,6 +54,10 @@ export function autoCaption(entry) {
     case 'select': return `Select ${JSON.stringify(entry.option)} in ${name}`;
     case 'toggle': return `Toggle ${name}`;
     case 'click': return `Click ${name}`;
+    case 'goto': {
+      try { const u = new URL(entry.url); return `Go to ${u.pathname}${u.search}`; }
+      catch { return `Go to ${entry.url}`; }
+    }
     case 'assert': return entry.title || `Verify ${entry.testid}`;
     default: return entry.title || entry.verb;
   }

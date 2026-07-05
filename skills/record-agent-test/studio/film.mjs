@@ -99,6 +99,7 @@ function estimateRuntime(journal, personaDwell, personaSpeed) {
   for (const e of journal.entries) {
     if (e.verb === 'scene') { dwellMs += 300; continue; } // chip swap only
     if (e.verb === 'assert') { dwellMs += 1900; dwellItems.push([`assert "${e.title}"`, 1900]); continue; }
+    if (e.verb === 'goto') { fixedMs += 1200; dwellMs += 800; dwellItems.push([autoCaption(e), 800]); continue; } // page load + register
     if (!ACTION_VERBS.has(e.verb)) continue;
     fixedMs += 550 / personaSpeed; // cursor travel + click, uncompressible
     let d = 250 + 1000; // hover dwell + settle
@@ -229,6 +230,15 @@ async function main() {
         await highlightBox(page, loc, tag, { color: 'rgb(31,136,61)', duration: hold(1800) });
         await page.waitForTimeout(hold(1600));
         assertLines.push(cap(e.title || e.testid, 36));
+        continue;
+      }
+
+      if (e.verb === 'goto') {
+        await pushScene('action', e.note || autoCaption(e));
+        await page.goto(e.url);
+        await page.waitForLoadState('networkidle').catch(() => {});
+        await installCursor(page); // navigation wiped the injected cursor
+        await page.waitForTimeout(hold(800)); // let viewers register the new page
         continue;
       }
 

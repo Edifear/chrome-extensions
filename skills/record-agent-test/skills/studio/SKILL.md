@@ -91,7 +91,8 @@ isn't already reachable.
 
    A plan stops at the first failing step (the response names the step and
    includes a fresh full snapshot); successful steps are kept. Allowed verbs in
-   a plan: `fill`, `select`, `toggle`, `click`, `scene`, `assert`.
+   a plan: `fill`, `select`, `toggle`, `click`, `goto`, `scene`, `assert`
+   (goto in a plan: `{"verb":"goto","url":"…"}`).
 
    | Command | Use for |
    |---|---|
@@ -99,6 +100,7 @@ isn't already reachable.
    | `select --label "<l>" --option "<o>" [--note "…"]` | a `<select>` dropdown |
    | `toggle --label "<l>" [--note "…"]` | radio button or checkbox |
    | `click --name "<button>"` (or `--selector` / `--text`) `[--note "…"]` | buttons, rows, links |
+   | `goto --url "<url>" [--note "…"]` | navigate the live session (deep link, wrong landing page after a redirect). Journaled and guaranteed to land in the spec as `page.goto(…)` at the right position; warns if the URL leaves the session origin (auth is origin-scoped) |
    | `scene --title "…" [--desc "…"]` | declare a chapter boundary for the video (instant) |
    | `assert --testid X [--contains "…"] [--title "…"]` | verify + journal an assertion, mid-flow or at the end |
    | `snapshot [--full]` | re-read the live page (responses show diffs; `--full` for everything) |
