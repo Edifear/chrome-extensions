@@ -85,16 +85,21 @@ experiments too — cheap ones to run early.
 
 ```
 1. PICK      one hypothesis from ideas.md (or invent one; add it first)
-2. BRANCH    git checkout -b exp/<slug> from the leaderboard commit
-3. IMPLEMENT the minimal diff — ONE idea per experiment, never two
-4. MEASURE   node research/bench.mjs --runs 3
-5. DECIDE    all gates pass AND median t_agent ≥5% better?
-               KEEP:    merge to research/main, update leaderboard line
-               REVERT:  git checkout research/main; branch stays for archaeology
-6. JOURNAL   append one line to research/journal.jsonl:
+2. IMPLEMENT the minimal diff in the working tree — ONE idea per experiment.
+             (Shared repo with unrelated work in flight: NO branch switching.
+             The mutable-surface files must be clean before you start.)
+3. MEASURE   node research/bench.mjs --runs 3
+4. DECIDE    all gates pass AND median t_agent ≥5% better?
+               KEEP:   git add skills/record-agent-test && git commit
+                       (message: "exp: <idea> — t_agent <old>→<new>ms");
+                       update the leaderboard line with the new sha
+               REVERT: git checkout -- <the files you touched>
+                       (save the diff to research/results/<slug>.patch first,
+                       for archaeology)
+5. JOURNAL   append one line to research/journal.jsonl:
              { ts, sha, idea, diffstat, t_agent, t_package, gates, verdict, insight }
              `insight` is mandatory — even (especially) for failures.
-7. REFRESH   move the idea to done/rejected in ideas.md; add any new ideas
+6. REFRESH   move the idea to done/rejected in ideas.md; add any new ideas
              the experiment suggested
 ```
 
