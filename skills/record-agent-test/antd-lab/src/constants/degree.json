@@ -1,0 +1,1033 @@
+[
+  {
+    "value": "ACSW",
+    "label": "Accredited Clinical Social Worker (ACSW)",
+    "nsch_matches": ["ACCREDITED CLINICAL SOCIAL WORKER", "ACSW"]
+  },
+  {
+    "value": "ANP",
+    "label": "Advanced Nurse Practitioner (ANP)",
+    "nsch_matches": ["ADVANCED NURSE PRACTITIONER", "ANP"]
+  },
+  {
+    "value": "APN",
+    "label": "Advanced Practice Nurse (APN)",
+    "nsch_matches": ["ADVANCED PRACTICE NURSE", "APN"]
+  },
+  {
+    "value": "APRN",
+    "label": "Advanced Practice Registered Nurse (APRN)",
+    "nsch_matches": ["ADVANCED PRACTICE REGISTERED NURSE", "APRN"]
+  },
+  {
+    "value": "ARNP",
+    "label": "Advanced Registered Nurse Practitioner (ARNP)",
+    "nsch_matches": ["ADVANCED REGISTERED NURSE PRACTITIONER", "ARNP"]
+  },
+  {
+    "value": "AND",
+    "label": "Associate Degree in Nursing (AND)",
+    "nsch_matches": ["ASSOCIATE DEGREE IN NURSING", "AND"],
+    "level": "associates"
+  },
+  {
+    "value": "AAS",
+    "label": "Associate in Applied Science (AAS)",
+    "nsch_matches": [
+      "ASSOCIATE IN APPLIED SCIENCE",
+      "ASSOCIATE OF APPLIED SCIENCE",
+      "ASSOCIATE IN APPLIED SCIENCE - HEARING INSTRUMENT SPECIALIST",
+      "AAS"
+    ],
+    "level": "associates"
+  },
+  {
+    "value": "AA",
+    "label": "Associate in Arts (AA)",
+    "nsch_matches": ["ASSOCIATE IN ARTS", "AA"],
+    "level": "associates"
+  },
+  {
+    "value": "ASN",
+    "label": "Associate in Nursing (ASN)",
+    "nsch_matches": ["ASSOCIATE IN NURSING", "ASN"],
+    "level": "associates"
+  },
+  {
+    "value": "AS",
+    "label": "Associate in Science (AS)",
+    "nsch_matches": ["ASSOCIATE IN SCIENCE", "AS"],
+    "level": "associates"
+  },
+  {
+    "value": "AD",
+    "label": "Associates Degree (AD)",
+    "nsch_matches": ["ASSOCIATES DEGREE", "AD"],
+    "level": "associates"
+  },
+  {
+    "value": "AUD",
+    "label": "Audiologist (AUD)",
+    "nsch_matches": ["AUDIOLOGIST", "AUD"]
+  },
+  {
+    "value": "BA",
+    "label": "Bachelor of Arts (BA)",
+    "nsch_matches": ["BACHELOR OF ARTS", "BA"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BASW",
+    "label": "Bachelor of Arts in Social Work (BASW)",
+    "nsch_matches": ["BACHELOR OF ARTS IN SOCIAL WORK", "BASW"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BFA",
+    "label": "Bachelor of Fine Arts (BFA)",
+    "nsch_matches": ["BACHELOR OF FINE ARTS", "BFA"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BHS",
+    "label": "Bachelor of Health Science (BHS)",
+    "nsch_matches": ["BACHELOR OF HEALTH SCIENCE", "BHS"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BMSc",
+    "label": "Bachelor of Medical Sciences (BMSc)",
+    "nsch_matches": ["BACHELOR OF MEDICAL SCIENCES", "BMSC"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BMT",
+    "label": "Bachelor of Medical Technology (BMT)",
+    "nsch_matches": ["BACHELOR OF MEDICAL TECHNOLOGY", "BMT"],
+    "level": "bachelors"
+  },
+  {
+    "value": "MB",
+    "label": "Bachelor of Medicine (MB)",
+    "nsch_matches": ["BACHELOR OF MEDICINE", "MB"],
+    "level": "bachelors"
+  },
+  {
+    "value": "MBBCH",
+    "label": "Bachelor of Medicine/Bachelor of Surgery (MBBCH)",
+    "nsch_matches": ["BACHELOR OF MEDICINE/BACHELOR OF SURGERY", "MBBCH"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BM",
+    "label": "Bachelor of Music (BM)",
+    "nsch_matches": ["BACHELOR OF MUSIC", "BM"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BN",
+    "label": "Bachelor of Nursing (BN)",
+    "nsch_matches": ["BACHELOR OF NURSING", "BN"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BPT",
+    "label": "Bachelor of Physical Therapy (BPT)",
+    "nsch_matches": ["BACHELOR OF PHYSICAL THERAPY", "BPT"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BS",
+    "label": "Bachelor of Science (BS)",
+    "nsch_matches": ["BACHELOR OF SCIENCE", "BS"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BSN",
+    "label": "Bachelor of Science in Nursing (BSN)",
+    "nsch_matches": ["BACHELOR OF SCIENCE IN NURSING", "BSN", "B S IN NURSING"],
+    "level": "bachelors"
+  },
+  {
+    "value": "BSW",
+    "label": "Bachelor of Social Work (BSW)",
+    "nsch_matches": [
+      "BACHELOR OF SOCIAL WORK",
+      "BACHELOR OF SCIENCE IN SOCIAL WORK",
+      "BSW"
+    ],
+    "level": "bachelors"
+  },
+  {
+    "value": "CCSW",
+    "label": "Certified Clinical Social Worker (CCSW)",
+    "nsch_matches": ["CERTIFIED CLINICAL SOCIAL WORKER", "CCSW"]
+  },
+  {
+    "value": "CD",
+    "label": "Certified Dietician (CD)",
+    "nsch_matches": ["CERTIFIED DIETICIAN", "CD"]
+  },
+  {
+    "value": "CFNP",
+    "label": "Certified Family Nurse Practitioner (CFNP)",
+    "nsch_matches": ["CERTIFIED FAMILY NURSE PRACTITIONER", "CFNP"]
+  },
+  {
+    "value": "CMFT",
+    "label": "Certified Marriage & Family Therapist (CMFT)",
+    "nsch_matches": ["CERTIFIED MARRIAGE & FAMILY THERAPIST", "CMFT"]
+  },
+  {
+    "value": "CMP",
+    "label": "Certified Massage Practitioner (CMP)",
+    "nsch_matches": ["CERTIFIED MASSAGE PRACTITIONER", "CMP"]
+  },
+  {
+    "value": "CMT",
+    "label": "Certified Massage Therapist (CMT)",
+    "nsch_matches": ["CERTIFIED MASSAGE THERAPIST", "CMT"]
+  },
+  {
+    "value": "CMA",
+    "label": "Certified Medical Assistant (CMA)",
+    "nsch_matches": ["CERTIFIED MEDICAL ASSISTANT", "CMA"]
+  },
+  {
+    "value": "CM",
+    "label": "Certified Midwife (CM)",
+    "nsch_matches": ["CERTIFIED MIDWIFE", "CM"]
+  },
+  {
+    "value": "CNM",
+    "label": "Certfied Nurse Midwife (CNM)",
+    "nsch_matches": ["CERTFIED NURSE MIDWIFE", "CNM"]
+  },
+  {
+    "value": "CNP",
+    "label": "Certified Nurse Practitioner (CNP)",
+    "nsch_matches": ["CERTIFIED NURSE PRACTITIONER", "CNP"]
+  },
+  {
+    "value": "CNC",
+    "label": "Certified Nutrition Consultant (CNC)",
+    "nsch_matches": ["CERTIFIED NUTRITION CONSULTANT", "CNC"]
+  },
+  {
+    "value": "CN",
+    "label": "Certified Nutritionist (CN)",
+    "nsch_matches": ["CERTIFIED NUTRITIONIST", "CN"]
+  },
+  {
+    "value": "COBA",
+    "label": "Certified Ohio Behavioral Analyst (COBA)",
+    "nsch_matches": ["CERTIFIED OHIO BEHAVIORAL ANALYST", "COBA"]
+  },
+  {
+    "value": "CPNP",
+    "label": "Certified Pediatric Nurse Practitioner (CPNP)",
+    "nsch_matches": ["CERTIFIED PEDIATRIC NURSE PRACTITIONER", "CPNP"]
+  },
+  {
+    "value": "CRNA",
+    "label": "Certified Registered Nurse Anesthetist (CRNA)",
+    "nsch_matches": ["CERTIFIED REGISTERED NURSE ANESTHETIST", "CRNA"]
+  },
+  {
+    "value": "CRNFA",
+    "label": "Certified Registered Nurse First Assistant (CRNFA)",
+    "nsch_matches": ["CERTIFIED REGISTERED NURSE FIRST ASSISTANT", "CRNFA"]
+  },
+  {
+    "value": "CRNP",
+    "label": "Certified Registered Nurse Practitioner (CRNP)",
+    "nsch_matches": ["CERTIFIED REGISTERED NURSE PRACTITIONER", "CRNP"]
+  },
+  {
+    "value": "CISW",
+    "label": "Clinical Independent Social Worker (CISW)",
+    "nsch_matches": ["CLINICAL INDEPENDENT SOCIAL WORKER", "CISW"]
+  },
+  {
+    "value": "CSW",
+    "label": "Clinical Social Worker (CSW)",
+    "nsch_matches": ["CLINICAL SOCIAL WORKER", "CSW"]
+  },
+  {
+    "value": "DT",
+    "label": "Dietetic Technician (DT)",
+    "nsch_matches": ["DIETETIC TECHNICIAN", "DT"]
+  },
+  {
+    "value": "DIPL",
+    "label": "Diploma in Nursing (DIPL)",
+    "nsch_matches": ["DIPLOMA IN NURSING", "DIPL"]
+  },
+  {
+    "value": "DA",
+    "label": "Doctor of Audiology (DA)",
+    "nsch_matches": ["DOCTOR OF AUDIOLOGY", "DA"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DC",
+    "label": "Doctor of Chiropractic (DC)",
+    "nsch_matches": ["DOCTOR OF CHIROPRACTIC", "DC", "DOCTOR OF CHIROPRACT"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DMD",
+    "label": "Doctor of Dental Medicine (DMD)",
+    "nsch_matches": ["DOCTOR OF DENTAL MEDICINE", "DMD"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DDS",
+    "label": "Doctor of Dental Surgery (DDS)",
+    "nsch_matches": ["DOCTOR OF DENTAL SURGERY", "DDS"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DD",
+    "label": "Doctor of Divinity (DD)",
+    "nsch_matches": ["DOCTOR OF DIVINITY", "DD"],
+    "level": "doctorate"
+  },
+  {
+    "value": "EDD",
+    "label": "Doctor of Education (EdD)",
+    "nsch_matches": ["DOCTOR OF EDUCATION", "EDD"],
+    "level": "doctorate"
+  },
+  {
+    "value": "MD",
+    "label": "Doctor of Medicine (MD)",
+    "nsch_matches": ["DOCTOR OF MEDICINE", "MD"],
+    "level": "doctorate"
+  },
+  {
+    "value": "AC",
+    "label": "Doctor of Medicine/Acupuncture (AC)",
+    "nsch_matches": ["DOCTOR OF MEDICINE/ACUPUNCTURE", "AC"],
+    "level": "doctorate"
+  },
+  {
+    "value": "ACU",
+    "label": "Acupuncturist (ACU)",
+    "nsch_matches": ["ACUPUNCTURIST", "ACU"]
+  },
+  {
+    "value": "D MIN",
+    "label": "Doctor of Ministry (D MIN)",
+    "nsch_matches": ["DOCTOR OF MINISTRY", "D MIN"],
+    "level": "doctorate"
+  },
+  {
+    "value": "ND",
+    "label": "Doctor of Naturopathy (ND)",
+    "nsch_matches": ["DOCTOR OF NATUROPATHY", "ND"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DNP",
+    "label": "Doctor of Nursing Practice (DNP)",
+    "nsch_matches": [
+      "DOCTOR OF NURSING PRACTICE",
+      "DNP",
+      "DOCTORATE OF NURSING PRACTICE",
+      "DOCTOR OF NURSING PRACTICE (DNP)",
+      "DOCTOR NURSING PRACTICE"
+    ],
+    "level": "doctorate"
+  },
+  {
+    "value": "DNS",
+    "label": "Doctor of Nursing Science (DNS)",
+    "nsch_matches": ["DOCTOR OF NURSING SCIENCE", "DNS"],
+    "level": "doctorate"
+  },
+  {
+    "value": "OD",
+    "label": "Doctor of Optometry (OD)",
+    "nsch_matches": ["DOCTOR OF OPTOMETRY", "OD"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DO",
+    "label": "Doctor of Osteopathic Medicine (DO)",
+    "nsch_matches": ["DOCTOR OF OSTEOPATHIC MEDICINE", "DO"],
+    "level": "doctorate"
+  },
+  {
+    "value": "PHARMD",
+    "label": "Doctor of Pharmacy (PHARMD)",
+    "nsch_matches": ["DOCTOR OF PHARMACY", "PHARMD"],
+    "level": "doctorate"
+  },
+  {
+    "value": "PHD",
+    "label": "Doctor of Philosophy (PHD)",
+    "nsch_matches": ["DOCTOR OF PHILOSOPHY", "PHD"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DPT",
+    "label": "Doctor of Physical Therapy (DPT)",
+    "nsch_matches": ["DOCTOR OF PHYSICAL THERAPY", "DPT"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DPM",
+    "label": "Doctor of Podiatric Medicine (DPM)",
+    "nsch_matches": ["DOCTOR OF PODIATRIC MEDICINE", "DPM"],
+    "level": "doctorate"
+  },
+  {
+    "value": "PSYD",
+    "label": "Doctor of Psychology (PSYD)",
+    "nsch_matches": [
+      "DOCTOR OF PSYCHOLOGY",
+      "PSYD",
+      "PHD PSYCHOLOGY",
+      "DOCTOR OF PSYCHOLOGY (PSYD)"
+    ],
+    "level": "doctorate"
+  },
+  {
+    "value": "SCD",
+    "label": "Doctor of Science (SCD)",
+    "nsch_matches": ["DOCTOR OF SCIENCE", "SCD"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DSN",
+    "label": "Doctor of Science in Nursing (DSN)",
+    "nsch_matches": ["DOCTOR OF SCIENCE IN NURSING", "DSN"],
+    "level": "doctorate"
+  },
+  {
+    "value": "DSW",
+    "label": "Doctor of Social Work (DSW)",
+    "nsch_matches": ["DOCTOR OF SOCIAL WORK", "DSW"],
+    "level": "doctorate"
+  },
+  {
+    "value": "FNP",
+    "label": "Family Nurse Practitioner (FNP)",
+    "nsch_matches": ["FAMILY NURSE PRACTITIONER", "FNP"]
+  },
+  {
+    "value": "MBBS",
+    "label": "Foreign - Bachelor of Medicine and Surgery (MBBS)",
+    "nsch_matches": ["FOREIGN - BACHELOR OF MEDICINE AND SURGERY", "MBBS"]
+  },
+  {
+    "value": "MRE",
+    "label": "Master of Religious Education (MRE)",
+    "nsch_matches": ["MASTER OF RELIGIOUS EDUCATION", "MRE"],
+    "level": "masters"
+  },
+  {
+    "value": "JD",
+    "label": "Juris Doctorate (JD)",
+    "nsch_matches": ["JURIS DOCTORATE", "JD"]
+  },
+  {
+    "value": "LMCC",
+    "label": "License of Medical Council of Canada (LMCC)",
+    "nsch_matches": ["LICENSE OF MEDICAL COUNCIL OF CANADA", "LMCC"]
+  },
+  {
+    "value": "LAC",
+    "label": "Licensed Acupuncturist (LAC)",
+    "nsch_matches": ["LICENSED ACUPUNCTURIST", "LAC"]
+  },
+  {
+    "value": "LCSW",
+    "label": "Licensed Clinical Social Worker (LCSW)",
+    "nsch_matches": ["LICENSED CLINICAL SOCIAL WORKER", "LCSW"]
+  },
+  {
+    "value": "LISW",
+    "label": "Licensed Independent Social Worker (LISW)",
+    "nsch_matches": ["LICENSED INDEPENDENT SOCIAL WORKER", "LISW"]
+  },
+  {
+    "value": "LMFT",
+    "label": "Licensed Marriage & Family Therapist (LMFT)",
+    "nsch_matches": ["LICENSED MARRIAGE & FAMILY THERAPIST", "LMFT"]
+  },
+  {
+    "value": "LMT",
+    "label": "Licensed Massage Therapist (LMT)",
+    "nsch_matches": ["LICENSED MASSAGE THERAPIST", "LMT"]
+  },
+  {
+    "value": "LMSW",
+    "label": "Licensed Master Social Work (LMSW)",
+    "nsch_matches": ["LICENSED MASTER SOCIAL WORK", "LMSW"]
+  },
+  {
+    "value": "LM",
+    "label": "Licensed Midwife (LM)",
+    "nsch_matches": ["LICENSED MIDWIFE", "LM"]
+  },
+  {
+    "value": "LPT",
+    "label": "Licensed Physical Therapist (LPT)",
+    "nsch_matches": ["LICENSED PHYSICAL THERAPIST", "LPT"]
+  },
+  {
+    "value": "LPN",
+    "label": "Licensed Practical Nurse (LPN)",
+    "nsch_matches": ["LICENSED PRACTICAL NURSE", "LPN"]
+  },
+  {
+    "value": "LPCC",
+    "label": "Licensed Professional Clinical Counselor (LPCC)",
+    "nsch_matches": ["LICENSED PROFESSIONAL CLINICAL COUNSELOR", "LPCC"]
+  },
+  {
+    "value": "LPCC-S",
+    "label": "Licensed Professional Clinical Counselor-Supervisor (LPCC-S)",
+    "nsch_matches": ["LICENSED PROFESSIONAL CLINICAL COUNSELOR-SUPERVISOR", "LPCC-S"]
+  },
+  {
+    "value": "LPC",
+    "label": "Licensed Professional Counselor (LPC)",
+    "nsch_matches": ["LICENSED PROFESSIONAL COUNSELOR", "LPC"]
+  },
+  {
+    "value": "LPC-C",
+    "label": "Licensed Professional Counselor-Candidate (LPC-C)",
+    "nsch_matches": ["LICENSED PROFESSIONAL COUNSELOR-CANDIDATE", "LPC-C"]
+  },
+  {
+    "value": "LSW",
+    "label": "Licensed Social Worker (LSW)",
+    "nsch_matches": ["LICENSED SOCIAL WORKER", "LSW"]
+  },
+  {
+    "value": "LPsy",
+    "label": "Licentiate in Psychology (LPsy)",
+    "nsch_matches": ["LICENTIATE IN PSYCHOLOGY", "LPSY"]
+  },
+  {
+    "value": "LMLS",
+    "label": "Licentiate of Medicine/Licentiate of Surgery (LMLS)",
+    "nsch_matches": ["LICENTIATE OF MEDICINE/LICENTIATE OF SURGERY", "LMLS"]
+  },
+  {
+    "value": "LMHC",
+    "label": "Licensed Mental Health Counselor (LMHC)",
+    "nsch_matches": ["LICENSED MENTAL HEALTH COUNSELOR", "LMHC"]
+  },
+  {
+    "value": "MFT",
+    "label": "Marriage & Family Therapist (MFT)",
+    "nsch_matches": ["MARRIAGE & FAMILY THERAPIST", "MFT"]
+  },
+  {
+    "value": "MFCC",
+    "label": "Marriage/Family/Child Counselor (MFCC)",
+    "nsch_matches": ["MARRIAGE/FAMILY/CHILD COUNSELOR", "MC/MFCT", "MFCC"]
+  },
+  {
+    "value": "MAO",
+    "label": "Master in Acupuncture and Oriental Medicine (MAO)",
+    "nsch_matches": ["MASTER IN ACUPUNCTURE AND ORIENTAL MEDICINE", "MAO"],
+    "level": "masters"
+  },
+  {
+    "value": "MC",
+    "label": "Master in Counseling (MC)",
+    "nsch_matches": [
+      "MASTER IN COUNSELING",
+      "MASTER OF ARTS COUNSELING",
+      "MASTER OF COUNSELING",
+      "M.A. IN COUNSELING",
+      "MC"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MAC",
+    "label": "Master of Acupuncture (MAC)",
+    "nsch_matches": ["MASTER OF ACUPUNCTURE", "MAC"],
+    "level": "masters"
+  },
+  {
+    "value": "MHA",
+    "label": "Master of Health Administration",
+    "nsch_matches": ["MASTER OF HEALTH ADMINISTRATION", "MHA"],
+    "level": "masters"
+  },
+  {
+    "value": "MCP",
+    "label": "Master of Child Psychology (MCP)",
+    "nsch_matches": ["MASTER OF CHILD PSYCHOLOGY", "MCP"],
+    "level": "masters"
+  },
+  {
+    "value": "MDIV",
+    "label": "Master of Divinity (MDIV)",
+    "nsch_matches": ["MASTER OF DIVINITY", "MDIV"],
+    "level": "masters"
+  },
+  {
+    "value": "MHS",
+    "label": "Master of Health Science (MHS)",
+    "nsch_matches": ["MASTER OF HEALTH SCIENCE", "MHS"],
+    "level": "masters"
+  },
+  {
+    "value": "MMFT",
+    "label": "Master of Marriage and Family Therapy (MMFT)",
+    "nsch_matches": [
+      "MASTER OF MARRIAGE AND FAMILY THERAPY",
+      "MASTER OF ARTS IN MARRIAGE & FAMILY COUNSELING",
+      "MASTER OF MARRIAGE & FAM THER",
+      "MS MARRIAGE/FAMILY T",
+      "MMFT"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MMSc",
+    "label": "Master of Medical Science (MMSc)",
+    "nsch_matches": ["MASTER OF MEDICAL SCIENCE", "MMSC"],
+    "level": "masters"
+  },
+  {
+    "value": "MOT",
+    "label": "Master of Occupational Therapy (MOT)",
+    "nsch_matches": [
+      "MASTER OF OCCUPATIONAL THERAPY",
+      "MOT",
+      "MASTER OCC THERAPY",
+      "MS IN OCCUPATIONAL THERAPY"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MPT",
+    "label": "Master of Physical Therapy (MPT)",
+    "nsch_matches": ["MASTER OF PHYSICAL THERAPY", "MPT"],
+    "level": "masters"
+  },
+  {
+    "value": "MPAS",
+    "label": "Master of Physician Assistant Studies (MPAS)",
+    "nsch_matches": [
+      "MASTER OF PHYSICIAN ASSISTANT STUDIES",
+      "MASTER OF PHYSICIAN ASSISTANT",
+      "MASTER OF PHYSICIAN ASST STU",
+      "MPAS"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MS",
+    "label": "Master of Science (MS)",
+    "nsch_matches": ["MASTER OF SCIENCE", "MASTER SCI", "MASTERS OF SCIENCE", "MS"],
+    "level": "masters"
+  },
+  {
+    "value": "MSO",
+    "label": "Master of Science and Oriental Medicine (MSO)",
+    "nsch_matches": ["MASTER OF SCIENCE AND ORIENTAL MEDICINE", "MSO"],
+    "level": "masters"
+  },
+  {
+    "value": "MSC",
+    "label": "Master of Science in Counseling (MSC)",
+    "nsch_matches": [
+      "MASTER OF SCIENCE IN COUNSELING",
+      "MASTER OF SCIENCE IN COUNSELING PSYCHOLOGY",
+      "MSC",
+      "MSC/CCMH"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MSD",
+    "label": "Master of Science in Dentistry (MSD)",
+    "nsch_matches": ["MASTER OF SCIENCE IN DENTISTRY", "MSD"],
+    "level": "masters"
+  },
+  {
+    "value": "MS ED",
+    "label": "Master of Science in Education (Ms Ed)",
+    "nsch_matches": [
+      "MASTER OF SCIENCE IN EDUCATION",
+      "MS IN EDUCATION",
+      "MS ED",
+      "MS EDUC & ALLIED PROF"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MSNA",
+    "label": "Master of Science in Nurse Anesthesia (MSNA)",
+    "nsch_matches": ["MASTER OF SCIENCE IN NURSE ANESTHESIA", "MSNA"],
+    "level": "masters"
+  },
+  {
+    "value": "MSN",
+    "label": "Master of Science in Nursing (MSN)",
+    "nsch_matches": [
+      "MASTER OF SCIENCE IN NURSING",
+      "MSN",
+      "MASTER OF SCIENCE - NURSING",
+      "M.S. IN NURSING",
+      "MS IN NURSING",
+      "MASTER OF SCIENCE IN NURSING (MSN)"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MSPAS",
+    "label": "Master of Science in Physician Assistant Studies (MSPAS)",
+    "nsch_matches": ["MASTER OF SCIENCE IN PHYSICIAN ASSISTANT STUDIES", "MSPAS"],
+    "level": "masters"
+  },
+  {
+    "value": "MSPH",
+    "label": "Master of Science in Public Health (MSPH)",
+    "nsch_matches": ["MASTER OF SCIENCE IN PUBLIC HEALTH", "MSPH"],
+    "level": "masters"
+  },
+  {
+    "value": "MSSA",
+    "label": "Master of Science in Social Administration (MSSA)",
+    "nsch_matches": ["MASTER OF SCIENCE IN SOCIAL ADMINISTRATION", "MSSA"],
+    "level": "masters"
+  },
+  {
+    "value": "MSSW",
+    "label": "Master of Science in Social Work (MSSW)",
+    "nsch_matches": [
+      "MASTER OF SCIENCE IN SOCIAL WORK",
+      "MSSW",
+      "MS IN SOCIAL WORK",
+      "MASTER OF SOCIAL WORK (MENTAL HEALTH PRACTICE)",
+      "MASTER OF SOCIAL WORK"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MSPT",
+    "label": "Master of Science Physical Therapy (MSPT)",
+    "nsch_matches": ["MASTER OF SCIENCE PHYSICAL THERAPY", "MSPT"],
+    "level": "masters"
+  },
+  {
+    "value": "MSPSY",
+    "label": "Master of Science Psychology (MSPSY)",
+    "nsch_matches": ["MASTER OF SCIENCE PSYCHOLOGY", "MSPSY"],
+    "level": "masters"
+  },
+  {
+    "value": "MSW",
+    "label": "Master of Social Work (MSW)",
+    "nsch_matches": [
+      "MASTER OF SOCIAL WORK",
+      "MSW",
+      "MASTERS OF SOCIAL WORK",
+      "MASTER OF SOCIAL WK",
+      "MASTER IN SOCIAL WORK"
+    ],
+    "level": "masters"
+  },
+  {
+    "value": "MSA",
+    "label": "Master of Surgical Assisting (MSA)",
+    "nsch_matches": ["MASTER OF SURGICAL ASSISTING", "MSA"],
+    "level": "masters"
+  },
+  {
+    "value": "MTS",
+    "label": "Master of Theological Studies (MTS)",
+    "nsch_matches": ["MASTER OF THEOLOGICAL STUDIES", "MTS"],
+    "level": "masters"
+  },
+  {
+    "value": "MSP",
+    "label": "Master in Speech Pathology (MSP)",
+    "nsch_matches": ["MASTER IN SPEECH PATHOLOGY", "MSP"],
+    "level": "masters"
+  },
+  {
+    "value": "MAH",
+    "label": "Master of Adult Health (MAH)",
+    "nsch_matches": ["MASTER OF ADULT HEALTH", "MAH"],
+    "level": "masters"
+  },
+  {
+    "value": "MA",
+    "label": "Master of Arts (MA)",
+    "nsch_matches": ["MASTER OF ARTS", "MA"],
+    "level": "masters"
+  },
+  {
+    "value": "MBA",
+    "label": "Master of Business Administration (MBA)",
+    "nsch_matches": ["MASTER OF BUSINESS ADMINISTRATION", "MBA"],
+    "level": "masters"
+  },
+  {
+    "value": "MED",
+    "label": "Master of Education (MED)",
+    "nsch_matches": ["MASTER OF EDUCATION", "MASTER OF ARTS IN EDUCATION", "MED", "ME"],
+    "level": "masters"
+  },
+  {
+    "value": "MHSA",
+    "label": "Master of Health Services Administration (MHSA)",
+    "nsch_matches": ["MASTER OF HEALTH SERVICES ADMINISTRATION", "MHSA"],
+    "level": "masters"
+  },
+  {
+    "value": "MN",
+    "label": "Master of Nursing (MN)",
+    "nsch_matches": ["MASTER OF NURSING", "MN"],
+    "level": "masters"
+  },
+  {
+    "value": "MPA",
+    "label": "Master of Public Administration (MPA)",
+    "nsch_matches": ["MASTER OF PUBLIC ADMINISTRATION", "MPA"],
+    "level": "masters"
+  },
+  {
+    "value": "MPH",
+    "label": "Master of Public Health (MPH)",
+    "nsch_matches": ["MASTER OF PUBLIC HEALTH", "MPH"],
+    "level": "masters"
+  },
+  {
+    "value": "STM",
+    "label": "Master of Sacred Theology (STM)",
+    "nsch_matches": ["MASTER OF SACRED THEOLOGY", "STM"],
+    "level": "masters"
+  },
+  {
+    "value": "MS AUD",
+    "label": "Master of Science in Audiology (MS AUD)",
+    "nsch_matches": ["MASTER OF SCIENCE IN AUDIOLOGY", "MS AUD"],
+    "level": "masters"
+  },
+  {
+    "value": "MDDO",
+    "label": "Medical Doctor/Osteopathic Doctor (MDDO)",
+    "nsch_matches": ["MEDICAL DOCTOR/OSTEOPATHIC DOCTOR", "MDDO"]
+  },
+  {
+    "value": "MT",
+    "label": "Massage Therapist (MT)",
+    "nsch_matches": ["MASSAGE THERAPIST", "MT"]
+  },
+  {
+    "value": "NA",
+    "label": "Nurse Anesthetist (NA)",
+    "nsch_matches": ["NURSE ANESTHETIST", "NA"]
+  },
+  {
+    "value": "NP",
+    "label": "Nurse Practitioner (NP)",
+    "nsch_matches": ["NURSE PRACTITIONER", "NP"]
+  },
+  {
+    "value": "OT",
+    "label": "Occupational Therapist (OT)",
+    "nsch_matches": ["OCCUPATIONAL THERAPIST", "OT"]
+  },
+  {
+    "value": "OTA",
+    "label": "Occupational Therapy Assistant (OTA)",
+    "nsch_matches": ["OCCUPATIONAL THERAPY ASSISTANT", "OTA"]
+  },
+  {
+    "value": "OTD",
+    "label": "Doctor of Occupational Therapy (OTD)",
+    "nsch_matches": ["DOCTOR OF OCCUPATIONAL THERAPY", "OTD"]
+  },
+  {
+    "value": "Other",
+    "label": "Other Degree",
+    "nsch_matches": ["OTHER", "OTR"]
+  },
+  {
+    "value": "OTR/L",
+    "label": "Occupational Therapist Registered Licensed",
+    "nsch_matches": ["OCCUPATIONAL THERAPIST REGISTERED LICENSED", "OTR/L"]
+  },
+  {
+    "value": "PNP",
+    "label": "Pediatric Nurse Practitioner (PNP)",
+    "nsch_matches": ["PEDIATRIC NURSE PRACTITIONER", "PNP"]
+  },
+  {
+    "value": "PHARM",
+    "label": "Pharmacist (PHARM)",
+    "nsch_matches": ["PHARMACIST", "PHARM"]
+  },
+  {
+    "value": "PT",
+    "label": "Physical Therapist (PT)",
+    "nsch_matches": ["PHYSICAL THERAPIST", "PT"]
+  },
+  {
+    "value": "PTA",
+    "label": "Physical Therapy Assistant (PTA)",
+    "nsch_matches": ["PHYSICAL THERAPY ASSISTANT", "PTA"]
+  },
+  {
+    "value": "PA",
+    "label": "Physician Assistant (PA)",
+    "nsch_matches": ["PHYSICIAN ASSISTANT", "PA"]
+  },
+  {
+    "value": "PB",
+    "label": "Post-Baccalaureate (PB)",
+    "nsch_matches": ["POST-BACCALAUREATE", "PB"]
+  },
+  {
+    "value": "PM",
+    "label": "Post-Masters (PM)",
+    "nsch_matches": ["POST-MASTERS", "PM", "POST MASTERS CERTIFICATE"]
+  },
+  {
+    "value": "PCCC",
+    "label": "Primary Class Christian Science Certificate (PCCC)",
+    "nsch_matches": ["PRIMARY CLASS CHRISTIAN SCIENCE CERTIFICATE", "PCCC"]
+  },
+  {
+    "value": "PNA",
+    "label": "Primary Nurse Associate (PNA)",
+    "nsch_matches": ["PRIMARY NURSE ASSOCIATE", "PNA"]
+  },
+  {
+    "value": "PCC",
+    "label": "Professional Clinical Counselor (PCC)",
+    "nsch_matches": ["PROFESSIONAL CLINICAL COUNSELOR", "PCC"]
+  },
+  {
+    "value": "PMHNP",
+    "label": "Psyc. Mental Health Nurse Practitioner (PMHNP)",
+    "nsch_matches": ["PSYC. MENTAL HEALTH NURSE PRACTITIONER", "PMHNP"]
+  },
+  {
+    "value": "RD",
+    "label": "Registered Dietician (RD)",
+    "nsch_matches": ["REGISTERED DIETICIAN", "RD"]
+  },
+  {
+    "value": "RDN",
+    "label": "Registered Dietitian Nutritionist (RDN)",
+    "nsch_matches": ["REGISTERED DIETICIAN NUTRITIONIST", "RDN"]
+  },
+  {
+    "value": "TMT",
+    "label": "Registered Massage Therapist (TMT)",
+    "nsch_matches": ["REGISTERED MASSAGE THERAPIST", "TMT"]
+  },
+  {
+    "value": "RN",
+    "label": "Registered Nurse (RN)",
+    "nsch_matches": ["REGISTERED NURSE", "RN"]
+  },
+  {
+    "value": "RNFA",
+    "label": "Registered Nurse First Assistant (RNFA)",
+    "nsch_matches": ["REGISTERED NURSE FIRST ASSISTANT", "RNFA"]
+  },
+  {
+    "value": "RPh",
+    "label": "Registered Pharmacist (RPh)",
+    "nsch_matches": ["REGISTERED PHARMACIST", "RPH"]
+  },
+  {
+    "value": "RRT",
+    "label": "Registered Respiratory Therapist (RRT)",
+    "nsch_matches": ["REGISTERED RESPIRATORY THERAPIST", "RRT"]
+  },
+  {
+    "value": "RPT",
+    "label": "Rehabilitation Physical Therapist (RPT)",
+    "nsch_matches": ["REHABILITATION PHYSICAL THERAPIST", "RPT"]
+  },
+  {
+    "value": "RCT",
+    "label": "Respiratory Care Therapist (RCT)",
+    "nsch_matches": ["RESPIRATORY CARE THERAPIST", "RCT"]
+  },
+  {
+    "value": "SLP",
+    "label": "Speech Language Pathologist (SLP)",
+    "nsch_matches": ["SPEECH LANGUAGE PATHOLOGIST", "SLP"]
+  },
+  {
+    "value": "SLPA",
+    "label": "Speech Language Pathology Assistant (SLPA)",
+    "nsch_matches": ["SPEECH LANGUAGE PATHOLOGY ASSISTANT", "SLPA"]
+  },
+  {
+    "value": "SLP-CF",
+    "label": "Speech Language Pathologist - Clinical Fellow (SLP-CF)",
+    "nsch_matches": ["SPEECH LANGUAGE PATHOLOGIST - CLINICAL FELLOW", "SLP-CF"]
+  },
+  {
+    "value": "SLPD",
+    "label": "Doctor of Speech-Language Pathology (SLPD)",
+    "nsch_matches": ["DOCTOR OF SPEECH-LANGUAGE PATHOLOGY", "SLPD"]
+  },
+  {
+    "value": "SW",
+    "label": "Social Worker (SW)",
+    "nsch_matches": ["SOCIAL WORKER", "SW"]
+  },
+  {
+    "label": "Associate's",
+    "value": "associates",
+    "nsch_matches": ["ASSOCIATE", "AA"],
+    "level": "associates"
+  },
+  {
+    "label": "Bachelor of Arts",
+    "value": "bachelors",
+    "nsch_matches": ["BACHELOR OF ARTS", "BA"],
+    "level": "bachelors"
+  },
+  {
+    "label": "Bachelor of Science",
+    "value": "bachelor-of-science",
+    "nsch_matches": ["BACHELOR OF SCIENCE", "BS"],
+    "level": "bachelors"
+  },
+  {
+    "label": "Master's",
+    "value": "masters",
+    "nsch_matches": ["MASTER"],
+    "level": "masters"
+  },
+  {
+    "label": "Doctorate",
+    "value": "doctorate",
+    "nsch_matches": ["DOCTORATE", "DRPH"],
+    "level": "doctorate"
+  },
+  {
+    "label": "Certificate/Diploma",
+    "value": "certificate",
+    "nsch_matches": [
+      "GRADUATE CERTIFICATE",
+      "CERTIFICATE",
+      "GRADUATE CERTIFICATE PROGRAM",
+      "CERTIFICATE PROGRAM",
+      "CERT. OF MARKETABLE SKILLS",
+      "CAS",
+      "CERT"
+    ]
+  }
+]

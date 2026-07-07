@@ -1,0 +1,14 @@
+[
+  {
+    "label": "Did not graduate - transferred to different program",
+    "value": "incomplete_transferred"
+  },
+  {
+    "label": "Did not graduate - other (please specify in Additional Notes)",
+    "value": "incomplete_other"
+  },
+  {
+    "label": "Future graduation date / program in process",
+    "value": "in_process"
+  }
+]

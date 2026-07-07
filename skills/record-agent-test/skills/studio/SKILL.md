@@ -96,7 +96,7 @@ isn't already reachable.
 
    | Command | Use for |
    |---|---|
-   | `fill --label "<l>" --value "<v>" [--note "…"]` | text / email / textarea |
+   | `fill --label "<l>" --value "<v>" [--note "…"]` | text / email / textarea / date picker (AntD pickers are auto-detected: fill clicks, types, and commits with Enter — one verb, no calendar-cell clicks) |
    | `select --label "<l>" --option "<o>" [--note "…"]` | a `<select>` dropdown |
    | `toggle --label "<l>" [--note "…"]` | radio button or checkbox |
    | `click --name "<button>"` (or `--selector` / `--text`) `[--note "…"]` | buttons, rows, links |
@@ -128,6 +128,10 @@ isn't already reachable.
 
    - `--flow` is the package slug (kebab-case); defaults to the slugified summary.
    - `--no-film` skips the video; `--no-frame-check` skips frame extraction.
+   - `--film-async` returns as soon as the assert pass is green (~3 s); the
+     video + viewer land in the package dir ~1 min later (`.run/progress.json`
+     phase flips to `done`; the daemon exits then — a new `start` is blocked
+     until it does).
    - Legacy `--assert-testid` / `--assert-contains` still work as sugar for a
      final assert.
    - Use `stop` instead of `finish` to tear down without packaging.
@@ -145,8 +149,9 @@ read the Playwright output, decide whether to re-drive, and say what happened.
 - **Radios/checkboxes:** plain click, not `.check()` (the recorder delays the
   default action; `.check()`'s verification would read a stale `false`).
 - **`<select>`:** clicked first to anchor the recorder, then the option is set.
-- **Pacing:** the daemon spaces actions `PACE_MS` apart automatically (paid at
-  the start of the next action, so your turns stay fast).
+- **Pacing:** the daemon enforces a small `STEP_GAP_MS` between DOM events and
+  a DOM-quiet settle after clicks, automatically — your turns stay fast and
+  the recorder still captures everything.
 - **Assertions** aren't captured by codegen — declared `assert`s are injected
   into the spec by `finish`.
 
@@ -157,7 +162,8 @@ read the Playwright output, decide whether to re-drive, and say what happened.
 | `HEADLESS` | `1` | applies to the recorder AND the film browser (`0` = watch) |
 | `PERSONA` | `calm` | film pacing: `calm` (1.0×) or `snappy` (0.6× dwells, 1.5× cursor) |
 | `ANNOTATE` | `minimal` | `full` = also draw per-action caption toasts in the video |
-| `PACE_MS` | `450` | recorder pacing between drive actions |
+| `PACE_MS` | `450` | cap for the DOM-quiet settle after clicks (waits ~130–390 ms in practice) |
+| `STEP_GAP_MS` | `200` | minimum gap between consecutive DOM events (capture correctness needs no more — the recorder commits a pending action on the next input event) |
 | `FORM_URL` | `http://localhost:5188/` | target app (already-served URLs are used as-is) |
 | `FORM_PORT` / `CDP_PORT` | `5188` / `9333` | static server / recorder debug port |
 | `OUT_FILE` | `tests/generated.spec.ts` | where the raw recording is written pre-finish |

@@ -1,0 +1,356 @@
+[
+  {
+    "group": "State",
+    "value": "AK",
+    "name": "Alaska",
+    "label": "AK - Alaska"
+  },
+  {
+    "group": "State",
+    "value": "AL",
+    "name": "Alabama",
+    "label": "AL - Alabama"
+  },
+  {
+    "group": "State",
+    "value": "AR",
+    "name": "Arkansas",
+    "label": "AR - Arkansas"
+  },
+  {
+    "group": "State",
+    "value": "AZ",
+    "name": "Arizona",
+    "label": "AZ - Arizona"
+  },
+  {
+    "group": "State",
+    "value": "CA",
+    "name": "California",
+    "label": "CA - California"
+  },
+  {
+    "group": "State",
+    "value": "CO",
+    "name": "Colorado",
+    "label": "CO - Colorado"
+  },
+  {
+    "group": "State",
+    "value": "CT",
+    "name": "Connecticut",
+    "label": "CT - Connecticut"
+  },
+  {
+    "group": "State",
+    "value": "DE",
+    "name": "Delaware",
+    "label": "DE - Delaware"
+  },
+  {
+    "group": "State",
+    "value": "FL",
+    "name": "Florida",
+    "label": "FL - Florida"
+  },
+  {
+    "group": "State",
+    "value": "GA",
+    "name": "Georgia",
+    "label": "GA - Georgia"
+  },
+  {
+    "group": "State",
+    "value": "HI",
+    "name": "Hawaii",
+    "label": "HI - Hawaii"
+  },
+  {
+    "group": "State",
+    "value": "IA",
+    "name": "Iowa",
+    "label": "IA - Iowa"
+  },
+  {
+    "group": "State",
+    "value": "ID",
+    "name": "Idaho",
+    "label": "ID - Idaho"
+  },
+  {
+    "group": "State",
+    "value": "IL",
+    "name": "Illinois",
+    "label": "IL - Illinois"
+  },
+  {
+    "group": "State",
+    "value": "IN",
+    "name": "Indiana",
+    "label": "IN - Indiana"
+  },
+  {
+    "group": "State",
+    "value": "KS",
+    "name": "Kansas",
+    "label": "KS - Kansas"
+  },
+  {
+    "group": "State",
+    "value": "KY",
+    "name": "Kentucky",
+    "label": "KY - Kentucky"
+  },
+  {
+    "group": "State",
+    "value": "LA",
+    "name": "Louisiana",
+    "label": "LA - Louisiana"
+  },
+  {
+    "group": "State",
+    "value": "MA",
+    "name": "Massachusetts",
+    "label": "MA - Massachusetts"
+  },
+  {
+    "group": "State",
+    "value": "MD",
+    "name": "Maryland",
+    "label": "MD - Maryland"
+  },
+  {
+    "group": "State",
+    "value": "ME",
+    "name": "Maine",
+    "label": "ME - Maine"
+  },
+  {
+    "group": "State",
+    "value": "MI",
+    "name": "Michigan",
+    "label": "MI - Michigan"
+  },
+  {
+    "group": "State",
+    "value": "MN",
+    "name": "Minnesota",
+    "label": "MN - Minnesota"
+  },
+  {
+    "group": "State",
+    "value": "MO",
+    "name": "Missouri",
+    "label": "MO - Missouri"
+  },
+  {
+    "group": "State",
+    "value": "MS",
+    "name": "Mississippi",
+    "label": "MS - Mississippi"
+  },
+  {
+    "group": "State",
+    "value": "MT",
+    "name": "Montana",
+    "label": "MT - Montana"
+  },
+  {
+    "group": "State",
+    "value": "NC",
+    "name": "North Carolina",
+    "label": "NC - North Carolina"
+  },
+  {
+    "group": "State",
+    "value": "ND",
+    "name": "North Dakota",
+    "label": "ND - North Dakota"
+  },
+  {
+    "group": "State",
+    "value": "NE",
+    "name": "Nebraska",
+    "label": "NE - Nebraska"
+  },
+  {
+    "group": "State",
+    "value": "NH",
+    "name": "New Hampshire",
+    "label": "NH - New Hampshire"
+  },
+  {
+    "group": "State",
+    "value": "NJ",
+    "name": "New Jersey",
+    "label": "NJ - New Jersey"
+  },
+  {
+    "group": "State",
+    "value": "NM",
+    "name": "New Mexico",
+    "label": "NM - New Mexico"
+  },
+  {
+    "group": "State",
+    "value": "NV",
+    "name": "Nevada",
+    "label": "NV - Nevada"
+  },
+  {
+    "group": "State",
+    "value": "NY",
+    "name": "New York",
+    "label": "NY - New York"
+  },
+  {
+    "group": "State",
+    "value": "OH",
+    "name": "Ohio",
+    "label": "OH - Ohio"
+  },
+  {
+    "group": "State",
+    "value": "OK",
+    "name": "Oklahoma",
+    "label": "OK - Oklahoma"
+  },
+  {
+    "group": "State",
+    "value": "OR",
+    "name": "Oregon",
+    "label": "OR - Oregon"
+  },
+  {
+    "group": "State",
+    "value": "PA",
+    "name": "Pennsylvania",
+    "label": "PA - Pennsylvania"
+  },
+  {
+    "group": "State",
+    "value": "RI",
+    "name": "Rhode Island",
+    "label": "RI - Rhode Island"
+  },
+  {
+    "group": "State",
+    "value": "SC",
+    "name": "South Carolina",
+    "label": "SC - South Carolina"
+  },
+  {
+    "group": "State",
+    "value": "SD",
+    "name": "South Dakota",
+    "label": "SD - South Dakota"
+  },
+  {
+    "group": "State",
+    "value": "TN",
+    "name": "Tennessee",
+    "label": "TN - Tennessee"
+  },
+  {
+    "group": "State",
+    "value": "TX",
+    "name": "Texas",
+    "label": "TX - Texas"
+  },
+  {
+    "group": "State",
+    "value": "UT",
+    "name": "Utah",
+    "label": "UT - Utah"
+  },
+  {
+    "group": "State",
+    "value": "VA",
+    "name": "Virginia",
+    "label": "VA - Virginia"
+  },
+  {
+    "group": "State",
+    "value": "VT",
+    "name": "Vermont",
+    "label": "VT - Vermont"
+  },
+  {
+    "group": "State",
+    "value": "WA",
+    "name": "Washington",
+    "label": "WA - Washington"
+  },
+  {
+    "group": "State",
+    "value": "WI",
+    "name": "Wisconsin",
+    "label": "WI - Wisconsin"
+  },
+  {
+    "group": "State",
+    "value": "WV",
+    "name": "West Virginia",
+    "label": "WV - West Virginia"
+  },
+  {
+    "group": "State",
+    "value": "WY",
+    "name": "Wyoming",
+    "label": "WY - Wyoming"
+  },
+  {
+    "group": "Other",
+    "value": "DC",
+    "name": "District of Columbia",
+    "label": "DC - District of Columbia"
+  },
+  {
+    "group": "Other",
+    "value": "GU",
+    "name": "Guam",
+    "label": "GU - Guam"
+  },
+  {
+    "group": "Other",
+    "value": "PR",
+    "name": "Puerto Rico",
+    "label": "PR - Puerto Rico"
+  },
+  {
+    "group": "Other",
+    "value": "VI",
+    "name": "US Virgin Islands",
+    "label": "VI - US Virgin Islands"
+  },
+  {
+    "group": "Other",
+    "value": "MP",
+    "name": "Northern Mariana Islands",
+    "label": "MP - Northern Mariana Islands"
+  },
+  {
+    "group": "Other",
+    "value": "AS",
+    "name": "American Samoa",
+    "label": "AS - American Samoa"
+  },
+  {
+    "group": "Other",
+    "value": "AA",
+    "name": "Armed Forces America",
+    "label": "AA - Armed Forces America"
+  },
+  {
+    "group": "Other",
+    "value": "AE",
+    "name": "Armed Forces Europe",
+    "label": "AE - Armed Forces Europe"
+  },
+  {
+    "group": "Other",
+    "value": "AP",
+    "name": "Armed Forces Pacific",
+    "label": "AP - Armed Forces Pacific"
+  }
+]

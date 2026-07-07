@@ -249,7 +249,20 @@ async function main() {
       try {
         await loc.waitFor({ state: 'visible', timeout: 10000 });
       } catch {
-        throw new Error(`journal entry ${e.i} (${e.verb}): target never became visible — page changed since drive?`);
+        // Diagnose before giving up: which locator did we end up with, and what
+        // does the live DOM look like for this target right now?
+        let diag = '';
+        try {
+          const l = e.target?.label ?? e.target?.name ?? e.target?.text ?? e.target?.selector ?? '';
+          const counts = e.target?.kind === 'label' ? {
+            exact: await page.getByLabel(l, { exact: true }).count(),
+            loose: await page.getByLabel(l).count(),
+            placeholder: await page.getByPlaceholder(l).count(),
+            id: await page.locator(`[id=${JSON.stringify(l)}]`).count(),
+          } : { matches: await loc.count() };
+          diag = ` [resolved to ${String(loc)}; counts ${JSON.stringify(counts)}]`;
+        } catch {}
+        throw new Error(`journal entry ${e.i} (${e.verb}): target never became visible — page changed since drive?${diag}`);
       }
       await installCursor(page); // survive any navigation the last action caused
       await motion.humanScroll(loc);
@@ -260,7 +273,13 @@ async function main() {
       // moment in scenes.json for the viewer's timeline and transcript.
       const toast = ANNOTATE_FULL ? await actionToast(page, esc(cap(caption, 48))) : null;
       try {
-        if (e.verb === 'fill') await motion.humanType(loc, e.value);
+        if (e.verb === 'fill') {
+          await motion.humanType(loc, e.value);
+          // Picker fills are journaled with commit:'enter' — press it so the
+          // date commits and the panel closes instead of overlaying the next
+          // target (typing alone leaves the panel open).
+          if (e.commit === 'enter') await page.keyboard.press('Enter');
+        }
         else if (e.verb === 'select') await motion.humanSelect(loc, e.option);
         else await motion.humanClick(loc); // toggle + click: plain human click
       } finally {

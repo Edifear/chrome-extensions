@@ -12,7 +12,7 @@ import net from 'node:net';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { openSync, existsSync, renameSync, writeFileSync, unlinkSync } from 'node:fs';
-import { mkdir, rm, readFile, writeFile, copyFile, rename, access } from 'node:fs/promises';
+import { mkdir, rm, readFile, writeFile, copyFile, rename, access, stat } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +32,10 @@ const cfg = {
   outFile: path.resolve(ROOT, process.env.OUT_FILE || 'tests/generated.spec.ts'),
   headless: process.env.HEADLESS || '1',
   pace: Number(process.env.PACE_MS || 450),
+  // Minimum gap between consecutive DOM events. Capture correctness does not
+  // need more: the injected recorder commits a pending action on the next
+  // input event regardless of spacing (verified in the antd-lab).
+  minGap: Number(process.env.STEP_GAP_MS || 200),
   idleMs: Number(process.env.RECORDER_IDLE_TIMEOUT_MS || 1800000),
   socket: process.env.STUDIO_SOCKET
     ? path.resolve(ROOT, process.env.STUDIO_SOCKET)
@@ -201,19 +205,42 @@ function journalEntry(entry) {
 }
 
 // ---------- verb execution (recorder-fidelity bodies from old session.mjs) ----------
-// Recorder pacing as debt: instead of sleeping PACE_MS after every action (which
-// would put ~450 ms inside each agent turn), the NEXT action waits out whatever
-// remains of the gap. Agent think-time between turns almost always covers it, so
-// fill/select turns run at wire speed while inter-action gaps never shrink
-// below PACE_MS — recorder fidelity is unchanged.
+// Recorder pacing, confirmation-based: the honest "recorder is done with the
+// previous action" signal is the generated spec itself — codegen's RecorderApp
+// flushes the captured action to OUT_FILE (throttled ~250 ms) only after it has
+// processed the event and run the delayed default action. So instead of fixed
+// PACE_MS sleeps we watch the file: proceed the moment it changes, with PACE_MS
+// as the fallback cap (an action that emits no spec line degrades to the old
+// behavior, never worse).
+async function specStat() {
+  try { const s = await stat(cfg.outFile); return `${s.mtimeMs}:${s.size}`; }
+  catch { return null; }
+}
+async function waitForSpecFlush(baseline, capMs) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < capMs) {
+    if ((await specStat()) !== baseline) return Date.now() - t0;
+    await sleep(25);
+  }
+  return Date.now() - t0;
+}
+
+// Pace as debt: enforce only a small human-plausible gap between DOM events.
+// Codegen does not need more — a pending click is committed by the NEXT input
+// event, so spacing has no effect on capture correctness (lab-verified). Agent
+// think-time between turns covers the gap entirely; in-plan steps pay ≤minGap.
 async function payPaceDebt() {
-  const since = Date.now() - state.lastActionAt;
-  if (since < cfg.pace) await sleep(cfg.pace - since);
+  if (!state.lastActionAt) return;
+  const gap = Date.now() - state.lastActionAt;
+  if (gap < cfg.minGap) await sleep(cfg.minGap - gap);
 }
 
 async function performAction(verb, args) {
   const page = state.page;
+  const tPace = Date.now();
   await payPaceDebt();
+  const paceMs = Date.now() - tPace;
+  const baseline = await specStat();
   const started = process.hrtime.bigint();
   let target, extra = {};
   switch (verb) {
@@ -221,8 +248,21 @@ async function performAction(verb, args) {
       if (!args.label || args.value === undefined) throw new Error('fill needs --label and --value');
       target = { kind: 'label', label: args.label };
       const loc = await resolveTarget(page, target);
-      await loc.fill(String(args.value));
-      extra = { value: String(args.value) };
+      // AntD DatePicker (rc-picker): the input is readonly until focused, and a
+      // programmatic fill never commits (blur reverts). rc-picker parses the
+      // text on input events and commits on Enter — so click (typing mode) →
+      // fill → Enter does the whole job in one verb, and codegen records
+      // fill + press('Enter') with robust locators (no calendar-cell click).
+      const isPicker = await loc.evaluate((el) => !!el.closest('.ant-picker')).catch(() => false);
+      if (isPicker) {
+        await loc.click();
+        await loc.fill(String(args.value));
+        await loc.press('Enter');
+        extra = { value: String(args.value), commit: 'enter' };
+      } else {
+        await loc.fill(String(args.value));
+        extra = { value: String(args.value) };
+      }
       break;
     }
     case 'select': {
@@ -261,11 +301,31 @@ async function performAction(verb, args) {
   }
   const ms = Math.round(Number(process.hrtime.bigint() - started) / 1e6);
   state.lastActionAt = Date.now();
-  // Clicks only: wait PACE_MS BEFORE the response snapshot — the recorder delays
-  // a click's default action, so an immediate snapshot can read a stale DOM (the
-  // "modal still hidden" false negative from live driving).
-  if (verb === 'click') await sleep(cfg.pace);
-  const entry = journalEntry({ verb, target, ...extra, ...(args.note ? { note: args.note } : {}), ms });
+  // Clicks only: the recorder delays a click's default action, so an immediate
+  // snapshot can read a stale DOM (the "modal still hidden" false negative).
+  // The spec flush is the WRONG signal here — codegen holds a click in its
+  // navigation-attribution window until the next input event. The right signal
+  // is the DOM itself: wait for mutation activity to go quiet (120 ms with no
+  // mutations after the first one), capped at PACE_MS.
+  let settleMs = 0;
+  if (verb === 'click') {
+    const t = Date.now();
+    await page.evaluate(({ quiet, cap }) => new Promise((resolve) => {
+      let quietTimer = null;
+      const capTimer = setTimeout(done, cap);
+      const mo = new MutationObserver(() => {
+        clearTimeout(quietTimer);
+        quietTimer = setTimeout(done, quiet);
+      });
+      function done() { mo.disconnect(); clearTimeout(capTimer); clearTimeout(quietTimer); resolve(); }
+      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, characterData: true });
+      // No mutation at all within `quiet`×2 → the click changed nothing; go.
+      quietTimer = setTimeout(done, quiet * 2);
+    }), { quiet: 120, cap: cfg.pace }).catch(() => sleep(cfg.pace));
+    settleMs = Date.now() - t;
+  }
+  state.pendingBaseline = baseline;
+  const entry = journalEntry({ verb, target, ...extra, ...(args.note ? { note: args.note } : {}), ms, paceMs, settleMs });
   progress.phases.drive.steps += 1;
   progress.phases.drive.ms += ms;
   return entry;
@@ -293,8 +353,13 @@ async function performGoto(args) {
   } catch {}
   const sinceLast = Date.now() - state.lastActionAt;
   if (state.lastActionAt && sinceLast < CAPTURE_FLUSH_MS) {
-    await sleep(CAPTURE_FLUSH_MS - sinceLast);
+    if (state.pendingBaseline !== undefined) {
+      await waitForSpecFlush(state.pendingBaseline, CAPTURE_FLUSH_MS - sinceLast);
+    } else {
+      await sleep(CAPTURE_FLUSH_MS - sinceLast);
+    }
   }
+  state.pendingBaseline = undefined;
   const started = process.hrtime.bigint();
   await state.page.goto(target.href, { timeout: 30000 });
   // Same settle the film pass uses; best-effort — busy apps may never go idle.
@@ -329,6 +394,20 @@ async function performAssert(args) {
   entry.title = args.title || `${args.testid} verified`;
   journalEntry(entry);
   return entry;
+}
+
+// Shared post-action response: persist, snapshot, and report the per-layer
+// timing breakdown (action = Playwright work, pace = recorder pacing debt,
+// settle = post-click DOM wait, snapshot = capture + diff).
+async function actionResponse(prefix, e) {
+  await writeJournal(); await saveProgress();
+  const t = Date.now();
+  const snapshot = await snap();
+  const parts = [`action ${e.ms} ms`];
+  if (e.paceMs) parts.push(`pace ${e.paceMs} ms`);
+  if (e.settleMs) parts.push(`settle ${e.settleMs} ms`);
+  parts.push(`snapshot ${Date.now() - t} ms`);
+  return { result: `${prefix} (${parts.join(' · ')})`, snapshot };
 }
 
 // ---------- verbs ----------
@@ -398,24 +477,16 @@ const verbs = {
   },
 
   async fill(args) {
-    const e = await performAction('fill', args);
-    await writeJournal(); await saveProgress();
-    return { result: `filled "${args.label}" = ${JSON.stringify(args.value)} (${e.ms} ms)`, snapshot: await snap() };
+    return actionResponse(`filled "${args.label}" = ${JSON.stringify(args.value)}`, await performAction('fill', args));
   },
   async select(args) {
-    const e = await performAction('select', args);
-    await writeJournal(); await saveProgress();
-    return { result: `selected ${JSON.stringify(args.option)} in "${args.label}" (${e.ms} ms)`, snapshot: await snap() };
+    return actionResponse(`selected ${JSON.stringify(args.option)} in "${args.label}"`, await performAction('select', args));
   },
   async toggle(args) {
-    const e = await performAction('toggle', args);
-    await writeJournal(); await saveProgress();
-    return { result: `toggled "${args.label}" (${e.ms} ms)`, snapshot: await snap() };
+    return actionResponse(`toggled "${args.label}"`, await performAction('toggle', args));
   },
   async click(args) {
-    const e = await performAction('click', args);
-    await writeJournal(); await saveProgress();
-    return { result: `clicked (${e.ms} ms)`, snapshot: await snap() };
+    return actionResponse('clicked', await performAction('click', args));
   },
 
   async goto(args) {
@@ -468,7 +539,7 @@ const verbs = {
           lines.push(`${i}: goto ${entry.url} OK (${entry.ms} ms)${warn ? ` — WARNING: ${warn}` : ''}`);
         } else {
           const e = await performAction(step.verb, step);
-          lines.push(`${i}: ${step.verb} OK (${e.ms} ms)`);
+          lines.push(`${i}: ${step.verb} OK (action ${e.ms}${e.paceMs ? ` · pace ${e.paceMs}` : ''}${e.settleMs ? ` · settle ${e.settleMs}` : ''} ms)`);
         }
       } catch (err) {
         await writeJournal(); await saveProgress(); // keep the successful prefix
@@ -478,7 +549,9 @@ const verbs = {
       }
     }
     await writeJournal(); await saveProgress();
-    return { result: `plan complete (${plan.length} steps)\n${lines.join('\n')}`, snapshot: await snap() };
+    const t = Date.now();
+    const snapshot = await snap();
+    return { result: `plan complete (${plan.length} steps · snapshot ${Date.now() - t} ms)\n${lines.join('\n')}`, snapshot };
   },
 
   async status() {
@@ -642,6 +715,7 @@ async function finishPipeline(args, sendEvt) {
 
   // 4. Parallel: assert pass ∥ film pass. The static server stays up for both.
   const noFilm = !!args.noFilm;
+  const filmAsync = !noFilm && !!args.filmAsync;
   progress.phase = 'assert';
   progress.phases.assert = { state: 'running', startedAt: new Date().toISOString() };
   progress.phases.film = noFilm
@@ -669,7 +743,57 @@ async function finishPipeline(args, sendEvt) {
         return r;
       });
 
-  const [assertRes, filmRes] = await Promise.all([assertPromise, filmPromise]);
+  // --film-async: return as soon as the assert pass is green; the film keeps
+  // rendering and the daemon stays alive just long enough to package it.
+  const assertResEarly = filmAsync ? await assertPromise : null;
+  if (filmAsync && assertResEarly.code === 0) {
+    await copyFile(specPath, path.join(pkgDir, 'flow.spec.ts'));
+    await copyFile(cfg.journalFile, path.join(pkgDir, 'journal.json'));
+    progress.phase = 'film';
+    await saveProgress();
+    filmPromise.then(async (filmRes) => {
+      try {
+        let filmOk = filmRes.code === 0;
+        let integrity = '';
+        if (filmOk) {
+          integrity = await verifyFilmIntegrity(pkgDir);
+          if (integrity) { log(`[finish] film integrity FAILED: ${integrity}`); filmOk = false; }
+        }
+        if (filmOk) {
+          const { renderViewer } = await import('./viewer.mjs');
+          const scenes = JSON.parse(await readFile(path.join(pkgDir, 'scenes.json'), 'utf8'));
+          const html = renderViewer({
+            journal: state.journal,
+            scenes,
+            spec: await readFile(specPath, 'utf8'),
+          });
+          await writeFile(path.join(pkgDir, 'index.html'), html, 'utf8');
+        }
+        progress.phases.package = { state: filmOk ? 'done' : 'failed' };
+        progress.phase = filmOk ? 'done' : 'failed';
+        await saveProgress();
+        await atomicWrite(path.join(pkgDir, 'run.json'), JSON.stringify({
+          ...progress,
+          finishMs: Date.now() - t0,
+          env: { HEADLESS: cfg.headless, PERSONA: process.env.PERSONA || 'calm', PACE_MS: cfg.pace, FORM_URL: cfg.formUrl },
+        }, null, 2));
+        await writeFile(path.join(pkgDir, 'run.log'), state.logLines.join('\n') + '\n', 'utf8');
+        log(`[finish] background film ${filmOk ? `packaged → ${pkgDir}` : `FAILED (see run.log): ${filmRes.out.slice(-500)}`}`);
+      } finally {
+        await teardownServerAndSocket();
+        scheduleExit(0);
+      }
+    });
+    return {
+      result: `assert pass green — spec: tests/${flow}.spec.ts\n` +
+        `film rendering in background → ${pkgDir}/ (recording.webm + index.html land when done; ` +
+        `phase in .run/progress.json flips to "done")`,
+    };
+  }
+
+  const [assertRes, filmRes] = filmAsync
+    ? [assertResEarly, await filmPromise] // async requested but assert RED: fall through to the failure path below
+    : await Promise.all([assertPromise, filmPromise]);
   await saveProgress();
 
   // Failure handling (§5.1): never delete anything.

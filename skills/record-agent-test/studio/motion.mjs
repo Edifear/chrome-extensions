@@ -128,6 +128,17 @@ export class Motion {
     const x = box.x + box.width / 2 + jx, y = box.y + box.height / 2 + jy;
     await this.page.mouse.move(x, y);
     this.cursor = { x, y };
+    // Hit-target check: a raw coordinate click on a point the target doesn't
+    // own (clipped by an overflow ancestor, covered by an overlay) lands on
+    // whatever IS there — on a maskClosable modal that's the mask, and the
+    // modal silently closes. Fall back to the actionability-checked click.
+    const hit = await locator.evaluate((el, pt) => {
+      const n = document.elementFromPoint(pt.x, pt.y);
+      if (!n) return false;
+      return el === n || el.contains(n) || n.contains(el) ||
+        (el.closest('label') !== null && el.closest('label') === n.closest('label'));
+    }, { x, y }).catch(() => false);
+    if (!hit) { await locator.click(); return; }
     await this.page.mouse.down();
     await sleep(this.between(40, 90));
     await this.page.mouse.up();
@@ -166,13 +177,42 @@ export class Motion {
   }
 
   // Wheel-scroll in 80–120 px steps every ~30 ms until the target is inside the
-  // viewport plus a 40 px margin — never scrollIntoViewIfNeeded teleports.
+  // viewport plus a margin — never scrollIntoViewIfNeeded teleports.
+  //
+  // Two subtleties (learned on antd modals): wheel events scroll whatever is
+  // under the CURSOR, and clipping is decided by the nearest scrollable
+  // ancestor (e.g. a modal body), not the viewport. So park the cursor over
+  // that ancestor first, and clamp the target against the ancestor's clip
+  // rect — an element can be "inside the viewport" yet clipped by the modal
+  // body, and a later raw click there would hit the mask (maskClosable
+  // modals silently close).
   async humanScroll(locator) {
+    const clip = await locator.evaluate((el) => {
+      let n = el.parentElement;
+      while (n) {
+        const s = getComputedStyle(n);
+        if (n.scrollHeight > n.clientHeight + 1 && /(auto|scroll|overlay)/.test(s.overflowY)) {
+          const r = n.getBoundingClientRect();
+          return { x: r.x, y: r.y, width: r.width, height: r.height };
+        }
+        n = n.parentElement;
+      }
+      return null;
+    }).catch(() => null);
+    if (clip) {
+      await this.#travel({
+        x: Math.min(Math.max(clip.x + clip.width / 2, 8), this.vp.width - 8),
+        y: Math.min(Math.max(clip.y + clip.height / 2, 8), this.vp.height - 8),
+      });
+    }
+    const top = clip ? Math.max(clip.y, 0) : 0;
+    const bottom = clip ? Math.min(clip.y + clip.height, this.vp.height) : this.vp.height;
+    const margin = Math.min(40, Math.max(8, (bottom - top) / 4));
     for (let guard = 0; guard < 200; guard++) {
       const box = await locator.boundingBox();
       if (!box) break; // let the caller's waitFor/actionability produce the real error
-      const topGap = box.y - 40;
-      const bottomGap = box.y + box.height - (this.vp.height - 40);
+      const topGap = box.y - (top + margin);
+      const bottomGap = box.y + box.height - (bottom - margin);
       if (topGap >= 0 && bottomGap <= 0) return;
       const dir = bottomGap > 0 ? 1 : -1;
       await this.page.mouse.wheel(0, dir * this.between(80, 120));

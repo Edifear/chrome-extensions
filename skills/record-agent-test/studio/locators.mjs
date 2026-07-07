@@ -9,23 +9,43 @@
 //   { kind: 'css',    selector }  locator(selector).first()
 //   { kind: 'testid', testid }    getByTestId(testid)
 
-export async function resolveTarget(page, target) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+export async function resolveTarget(page, target, { retryMs = 2000 } = {}) {
   switch (target?.kind) {
     case 'label': {
       // Mirror the snapshot's labelOf() fallback chain: real <label>/aria-label
       // → placeholder → element id. Whatever name the snapshot showed the
       // agent must resolve back to the same control.
-      const exact = page.getByLabel(target.label, { exact: true });
-      if (await exact.count()) return exact.first();
-      const loose = page.getByLabel(target.label);
-      if (await loose.count()) return loose.first();
-      const placeholder = page.getByPlaceholder(target.label);
-      if (await placeholder.count()) return placeholder.first();
-      return page.locator(`[id=${JSON.stringify(target.label)}]`).first();
+      //
+      // The chain probes with count(), which is a point-in-time check — a
+      // conditional field that mounts a beat after the previous action would
+      // lock onto the never-matching [id=…] fallback. Retry the whole chain
+      // briefly before settling on the fallback.
+      const deadline = Date.now() + retryMs;
+      for (;;) {
+        const exact = page.getByLabel(target.label, { exact: true });
+        if (await exact.count()) return exact.first();
+        const loose = page.getByLabel(target.label);
+        if (await loose.count()) return loose.first();
+        const placeholder = page.getByPlaceholder(target.label);
+        if (await placeholder.count()) return placeholder.first();
+        const byId = page.locator(`[id=${JSON.stringify(target.label)}]`).first();
+        if (await byId.count()) return byId;
+        if (Date.now() >= deadline) return byId;
+        await sleep(60);
+      }
     }
     case 'button': {
-      const exact = page.getByRole('button', { name: target.name, exact: true });
-      return (await exact.count()) ? exact.first() : page.getByRole('button', { name: target.name }).first();
+      const deadline = Date.now() + retryMs;
+      for (;;) {
+        const exact = page.getByRole('button', { name: target.name, exact: true });
+        if (await exact.count()) return exact.first();
+        const loose = page.getByRole('button', { name: target.name }).first();
+        if (await loose.count()) return loose;
+        if (Date.now() >= deadline) return loose;
+        await sleep(60);
+      }
     }
     case 'text':
       return page.getByText(target.text).first();

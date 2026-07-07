@@ -142,6 +142,7 @@ async function main() {
         flow: f.flow,
         summary: f.summary,
         noFilm: !!f['no-film'],
+        filmAsync: !!f['film-async'],
         noFrameCheck: !!f['no-frame-check'],
         assertTestid: f['assert-testid'],
         assertContains: f['assert-contains'],

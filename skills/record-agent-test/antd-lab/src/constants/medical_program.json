@@ -1,0 +1,93 @@
+[
+  {
+    "label": "High School",
+    "value": "high_school",
+    "kind": "education",
+    "verification_degree_level": null,
+    "requires_verification": false
+  },
+  {
+    "label": "Elementary/Primary School",
+    "value": "primary_school",
+    "kind": "education",
+    "verification_degree_level": null,
+    "requires_verification": false
+  },
+  {
+    "label": "Associate's",
+    "value": "associates",
+    "kind": "education",
+    "verification_degree_level": "associates",
+    "requires_verification": true
+  },
+  {
+    "label": "Undergraduate",
+    "value": "undergrad",
+    "kind": "education",
+    "verification_degree_level": "bachelors",
+    "requires_verification": true
+  },
+  {
+    "label": "Master's",
+    "value": "masters",
+    "kind": "education",
+    "verification_degree_level": "masters",
+    "requires_verification": true
+  },
+  {
+    "label": "Medical School",
+    "value": "md",
+    "kind": "education",
+    "verification_degree_level": "professional",
+    "requires_verification": true
+  },
+  {
+    "label": "Nursing Graduate Program",
+    "value": "nursing_graduate_program",
+    "kind": "education",
+    "verification_degree_level": "professional",
+    "requires_verification": true
+  },
+  {
+    "label": "Graduate School",
+    "value": "phd",
+    "kind": "education",
+    "verification_degree_level": "professional",
+    "requires_verification": true
+  },
+  {
+    "label": "Law School",
+    "value": "jd",
+    "kind": "education",
+    "verification_degree_level": "professional",
+    "requires_verification": true
+  },
+  {
+    "label": "Fellowship",
+    "value": "fellowship",
+    "kind": "training",
+    "verification_degree_level": null,
+    "requires_verification": false
+  },
+  {
+    "label": "Internship",
+    "value": "internship",
+    "kind": "training",
+    "verification_degree_level": null,
+    "requires_verification": false
+  },
+  {
+    "label": "Residency",
+    "value": "residency",
+    "kind": "training",
+    "verification_degree_level": null,
+    "requires_verification": true
+  },
+  {
+    "label": "Work History",
+    "value": "medical_practice",
+    "kind": "work",
+    "verification_degree_level": null,
+    "requires_verification": true
+  }
+]
