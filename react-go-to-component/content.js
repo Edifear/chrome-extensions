@@ -1,20 +1,22 @@
 // Bridge: MAIN world (inject.js) <-> service worker (background.js)
+//
+// Protocol (typed CustomEvents):
+//   inject.js → content.js: '__react-goto:to-iso'  {type, reqId?, ...}
+//   content.js → inject.js: '__react-goto:to-main' {type, reqId?, ...}
+//
+// Request/response: inject includes reqId; content replies with {type:'response', reqId, result}.
 
-// ── Validation: sanitize CustomEvent data from MAIN world ──
+const PAGE_ORIGIN = window.location.origin;
 
-function isNonEmptyString(v) {
-  return typeof v === 'string' && v.length > 0;
-}
+// ── Validation ──
 
-function isPositiveInt(v) {
-  return Number.isInteger(v) && v > 0;
-}
+function isNonEmptyString(v) { return typeof v === 'string' && v.length > 0; }
+function isPositiveInt(v) { return Number.isInteger(v) && v > 0; }
 
 function validateComponent(comp) {
   if (!comp || typeof comp !== 'object') return null;
   if (!isNonEmptyString(comp.fileName)) return null;
   if (!isPositiveInt(comp.line)) return null;
-  // Reject path traversal
   if (comp.fileName.includes('..')) return null;
   return { fileName: comp.fileName, line: comp.line, col: Number(comp.col) || 0, name: comp.name || '' };
 }
@@ -24,7 +26,6 @@ function validateReadSource(d) {
   if (!isNonEmptyString(d.file)) return null;
   if (!isPositiveInt(d.line)) return null;
   if (d.file.includes('..')) return null;
-  // Sanitize hints: only allow short strings
   const hints = Array.isArray(d.hints)
     ? d.hints.filter(h => typeof h === 'string' && h.length < 200)
     : [];
@@ -34,69 +35,60 @@ function validateReadSource(d) {
     context: Number(d.context) || 5,
     hints,
     origin: isNonEmptyString(d.origin) ? d.origin : '',
-    projectRoot: isNonEmptyString(d.projectRoot) ? d.projectRoot : '',
-    reqId: d.reqId
+    projectRoot: isNonEmptyString(d.projectRoot) ? d.projectRoot : ''
   };
 }
 
-// ── Settings: push to MAIN world on load and on change ──
+// ── Typed bridge ──
 
-function pushSettings(settings) {
-  document.dispatchEvent(new CustomEvent('__react-goto-settings', {
-    detail: settings
-  }));
+function sendToMain(msg) {
+  document.dispatchEvent(new CustomEvent('__react-goto:to-main', { detail: msg }));
 }
 
-chrome.storage.local.get({
-  projectRoot: '',
-  shortcutKeys: ['Alt'],
-  showPreview: true,
-  skipDirs: 'dumb_components, src/components/'
-}, pushSettings);
+function respond(reqId, result) {
+  sendToMain({ type: 'response', reqId, result });
+}
 
-chrome.storage.onChanged.addListener((changes) => {
-  const updated = {};
-  for (const [key, { newValue }] of Object.entries(changes)) {
-    updated[key] = newValue;
-  }
-  pushSettings(updated);
-});
-
-// ── background.js -> inject.js (context menu) ──
-
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === 'CONTEXT_MENU_GOTO') {
-    document.dispatchEvent(new CustomEvent('__react-goto-context-menu'));
+document.addEventListener('__react-goto:to-iso', (e) => {
+  const m = e.detail;
+  if (!m || typeof m !== 'object') return;
+  switch (m.type) {
+    case 'open':
+      handleOpen(m);
+      break;
+    case 'readSource':
+      handleReadSource(m);
+      break;
+    case 'stateChange':
+      handleStateChange(m);
+      break;
   }
 });
 
-// ── inject.js -> background.js (open in VS Code) ──
+// ── Request handlers ──
 
-document.addEventListener('__react-goto-component', (e) => {
-  if (!chrome.runtime?.id) return;
+function handleOpen(m) {
+  if (!chrome.runtime?.id) { respond(m.reqId, { success: false, error: 'Extension context lost' }); return; }
 
-  const comp = validateComponent(e.detail?.component);
-  if (!comp) return;
-  const projectRoot = isNonEmptyString(e.detail?.projectRoot) ? e.detail.projectRoot : '';
+  const comp = validateComponent(m.component);
+  if (!comp) { respond(m.reqId, { success: false, error: 'Invalid component' }); return; }
+  const projectRoot = isNonEmptyString(m.projectRoot) ? m.projectRoot : '';
 
   chrome.runtime.sendMessage({
     type: 'OPEN_COMPONENT',
     component: comp,
-    projectRoot
+    projectRoot,
+    origin: PAGE_ORIGIN
   }, (resp) => {
-    document.dispatchEvent(new CustomEvent('__react-goto-open-result', {
-      detail: resp || { success: false }
-    }));
+    respond(m.reqId, resp || { success: false, error: 'No response' });
   });
-});
+}
 
-// ── inject.js -> background.js -> inject.js (read source preview) ──
+function handleReadSource(m) {
+  if (!chrome.runtime?.id) { respond(m.reqId, { success: false, error: 'Extension context lost' }); return; }
 
-document.addEventListener('__react-goto-read-source', (e) => {
-  if (!chrome.runtime?.id) return;
-
-  const data = validateReadSource(e.detail);
-  if (!data) return;
+  const data = validateReadSource(m);
+  if (!data) { respond(m.reqId, { success: false, error: 'Invalid read-source request' }); return; }
 
   chrome.runtime.sendMessage({
     type: 'READ_SOURCE',
@@ -107,10 +99,69 @@ document.addEventListener('__react-goto-read-source', (e) => {
     origin: data.origin,
     projectRoot: data.projectRoot
   }, (resp) => {
-    const result = resp || { success: false, error: 'No response' };
-    if (data.reqId !== undefined) result.reqId = data.reqId;
-    document.dispatchEvent(new CustomEvent('__react-goto-source-result', {
-      detail: result
-    }));
+    respond(m.reqId, resp || { success: false, error: 'No response' });
   });
+}
+
+function handleStateChange(m) {
+  if (!chrome.runtime?.id) return;
+  chrome.runtime.sendMessage({ type: 'STATE_CHANGE', active: !!m.active });
+}
+
+// Clear any stale badge from a previous page's active picker.
+if (chrome.runtime?.id) {
+  chrome.runtime.sendMessage({ type: 'STATE_CHANGE', active: false });
+}
+
+// ── Settings (content → inject): push on load + on storage change ──
+
+function pushSettings(settings) {
+  sendToMain({ type: 'settings', settings });
+}
+
+function resolveForOrigin(s) {
+  const cfg = s.originSettings?.[PAGE_ORIGIN] || {};
+  return {
+    projectRoot: cfg.projectRoot !== undefined ? cfg.projectRoot : s.projectRoot,
+    editor: cfg.editor !== undefined ? cfg.editor : s.editor,
+    skipDirs: cfg.skipDirs !== undefined ? cfg.skipDirs : s.skipDirs,
+    shortcutKeys: s.shortcutKeys,
+    showPreview: s.showPreview,
+    disabled: Array.isArray(s.disabledOrigins) && s.disabledOrigins.includes(PAGE_ORIGIN)
+  };
+}
+
+chrome.storage.local.get({
+  projectRoot: '',
+  editor: '/usr/local/bin/code',
+  skipDirs: 'dumb_components, src/components/',
+  shortcutKeys: ['Alt'],
+  showPreview: true,
+  originSettings: {},
+  disabledOrigins: []
+}, (s) => pushSettings(resolveForOrigin(s)));
+
+chrome.storage.onChanged.addListener((changes) => {
+  const updated = {};
+  for (const [key, { newValue }] of Object.entries(changes)) {
+    if (key === 'disabledOrigins') {
+      updated.disabled = Array.isArray(newValue) && newValue.includes(PAGE_ORIGIN);
+    } else if (key === 'originSettings') {
+      const cfg = (newValue || {})[PAGE_ORIGIN] || {};
+      if (cfg.projectRoot !== undefined) updated.projectRoot = cfg.projectRoot;
+      if (cfg.editor !== undefined) updated.editor = cfg.editor;
+      if (cfg.skipDirs !== undefined) updated.skipDirs = cfg.skipDirs;
+    } else {
+      updated[key] = newValue;
+    }
+  }
+  if (Object.keys(updated).length) pushSettings(updated);
+});
+
+// ── background.js → inject.js (context-menu trigger) ──
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === 'CONTEXT_MENU_GOTO') {
+    sendToMain({ type: 'contextMenu' });
+  }
 });

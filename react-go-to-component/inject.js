@@ -32,32 +32,145 @@ let _annotationDirty = false;
   }
 })();
 
-// ── Configuration (overridden by chrome.storage via content.js) ──
-let PROJECT_ROOT = '';
+// ── Configuration ──
 
-function fullPath(fileName) {
-  if (PROJECT_ROOT && !fileName.startsWith(PROJECT_ROOT)) {
-    return `${PROJECT_ROOT}${fileName}`;
-  }
-  return fileName;
-}
+let PROJECT_ROOT = '';
 let SHORTCUT_KEYS = ['Alt'];
 let SHOW_PREVIEW = true;
 let SKIP_DIRS = ['node_modules'];
+let DISABLED = false;
 
-document.addEventListener('__react-goto-settings', (e) => {
-  const s = e.detail;
+function fullPath(fileName) {
+  // An absolute path already points at a real on-disk location — e.g. the git
+  // worktree the dev server is running from. Use it verbatim; prepending
+  // PROJECT_ROOT would produce a doubled, broken path. Only project-relative
+  // paths (e.g. Docker "src/..." after the /app strip) get PROJECT_ROOT.
+  if (fileName.startsWith('/')) return fileName;
+  if (!PROJECT_ROOT) return fileName;
+  const root = PROJECT_ROOT.endsWith('/') ? PROJECT_ROOT : PROJECT_ROOT + '/';
+  return `${root}${fileName}`;
+}
+
+function applySettings(s) {
+  if (!s || typeof s !== 'object') return;
   if (s.projectRoot !== undefined) PROJECT_ROOT = s.projectRoot;
   if (s.shortcutKeys !== undefined) SHORTCUT_KEYS = s.shortcutKeys;
   if (s.showPreview !== undefined) {
     SHOW_PREVIEW = s.showPreview;
-    codePreview.style.display = SHOW_PREVIEW ? '' : 'none';
+    if (_ui) _ui.codePreview.style.display = SHOW_PREVIEW ? '' : 'none';
   }
   if (s.skipDirs !== undefined) {
     const extra = s.skipDirs.split(',').map(d => d.trim()).filter(Boolean);
     SKIP_DIRS = ['node_modules', ...extra];
     _annotationDirty = true;
   }
+  if (s.disabled !== undefined) {
+    DISABLED = !!s.disabled;
+    if (DISABLED) deactivate();
+  }
+}
+
+// ── Plugin registry ──
+
+const _plugins = new Map();
+
+function firePluginHook(hookName, arg) {
+  for (const p of _plugins.values()) {
+    try { p.hooks[hookName]?.(arg); } catch (e) { console.warn('[react-goto]', p.name, hookName, e); }
+  }
+}
+
+function awaitPluginHook(hookName, arg) {
+  for (const p of _plugins.values()) {
+    const fn = p.hooks[hookName];
+    if (typeof fn === 'function') {
+      try { return Promise.resolve(fn(arg)); }
+      catch (e) { return Promise.reject(e); }
+    }
+  }
+  return Promise.reject(new Error(`no plugin handles ${hookName}`));
+}
+
+function broadcastStateChange() {
+  firePluginHook('onStateChange', { active: pickerActive || tooltipPinned });
+}
+
+// ── Typed bridge to ISOLATED world ──
+//   inject.js → content.js: __react-goto:to-iso  {type, ...}
+//   content.js → inject.js: __react-goto:to-main {type, ...}
+
+const _pendingReqs = new Map();
+let _nextReqId = 0;
+
+function sendToIso(msg) {
+  document.dispatchEvent(new CustomEvent('__react-goto:to-iso', { detail: msg }));
+}
+
+function request(type, payload, timeoutMs) {
+  const reqId = ++_nextReqId;
+  return new Promise((resolve) => {
+    _pendingReqs.set(reqId, resolve);
+    sendToIso({ type, reqId, ...payload });
+    setTimeout(() => {
+      if (_pendingReqs.has(reqId)) {
+        _pendingReqs.delete(reqId);
+        resolve({ success: false, error: 'timeout' });
+      }
+    }, timeoutMs);
+  });
+}
+
+document.addEventListener('__react-goto:to-main', (e) => {
+  const m = e.detail;
+  if (!m || typeof m !== 'object') return;
+  switch (m.type) {
+    case 'settings':
+      applySettings(m.settings);
+      break;
+    case 'contextMenu':
+      handleContextMenu();
+      break;
+    case 'response': {
+      const resolve = _pendingReqs.get(m.reqId);
+      if (resolve) { _pendingReqs.delete(m.reqId); resolve(m.result || {}); }
+      break;
+    }
+  }
+});
+
+// Built-in bridge plugin: routes picker hooks across the world boundary
+_plugins.set('iso-bridge', {
+  name: 'iso-bridge',
+  hooks: {
+    onStateChange(state) {
+      sendToIso({ type: 'stateChange', active: state.active });
+    },
+    onRequestOpen(component) {
+      return request('open', { component, projectRoot: PROJECT_ROOT }, 3000);
+    },
+    onRequestReadSource(params) {
+      return request('readSource', { ...params, origin: getViteOrigin(), projectRoot: PROJECT_ROOT }, 5000);
+    }
+  }
+});
+
+// ── Public plugin API ──
+
+window.__REACT_GOTO__ = Object.freeze({
+  registerPlugin(plugin) {
+    if (!plugin || typeof plugin.name !== 'string' || !plugin.hooks) throw new Error('invalid plugin');
+    _plugins.set(plugin.name, plugin);
+    plugin.hooks.onInit?.({ settings: { projectRoot: PROJECT_ROOT, shortcutKeys: SHORTCUT_KEYS, showPreview: SHOW_PREVIEW } });
+    return () => _plugins.delete(plugin.name);
+  },
+  unregisterPlugin(name) {
+    _plugins.delete(name);
+  },
+  activate() { activate(); },
+  deactivate() { deactivate(); },
+  toggle() { (pickerActive ? deactivate : activate)(); },
+  setSettings: applySettings,
+  get isActive() { return pickerActive || tooltipPinned; }
 });
 
 // ── Fiber Walking ──
@@ -69,18 +182,14 @@ function getFiber(element) {
 
 function getElementHints(element) {
   const hints = [];
-  // Direct text content (not children's text)
   const directText = Array.from(element.childNodes)
     .filter(n => n.nodeType === 3)
     .map(n => n.textContent.trim())
     .filter(Boolean)
     .join(' ');
   if (directText && directText.length < 80) hints.push(directText);
-  // Short textContent as fallback
   const text = element.textContent?.trim();
   if (text && text.length < 40 && text !== directText) hints.push(text);
-  // Static text fragments: extract parts that aren't dynamic (split on numbers, dates, etc.)
-  // e.g. "Last Updated: 03/30/2026 at 6:00:54 PM" → "Last Updated:"
   const textToSplit = directText || text || '';
   if (textToSplit) {
     const fragments = textToSplit.split(/[\d]+[\d/:\s.,aApPmM]*/).map(f => f.trim()).filter(f => f.length >= 3);
@@ -88,14 +197,10 @@ function getElementHints(element) {
       if (!hints.includes(frag)) hints.push(frag);
     }
   }
-  // Tag name
   if (element.tagName) hints.push(element.tagName.toLowerCase());
-  // Class names (individual) + extract semantic parts from class names
   if (element.className && typeof element.className === 'string') {
     element.className.split(/\s+/).filter(Boolean).forEach(c => {
       hints.push(c);
-      // Split on underscores (CSS modules: "_metadata_1o22u_439")
-      // and hyphens (BEM/utility: "ant-typography-secondary")
       const parts = c.split(/[-_]/).filter(Boolean);
       if (parts.length >= 2) {
         for (const part of parts) {
@@ -106,7 +211,6 @@ function getElementHints(element) {
       }
     });
   }
-  // Key attributes
   for (const attr of ['id', 'name', 'href', 'src', 'alt', 'placeholder', 'aria-label', 'data-testid']) {
     const val = element.getAttribute?.(attr);
     if (val) hints.push(val);
@@ -115,7 +219,6 @@ function getElementHints(element) {
 }
 
 function getNearestComponent(element) {
-  // Walk up the DOM until we find an element with a React fiber
   let el = element;
   let fiber = null;
   while (el && el !== document.documentElement) {
@@ -127,10 +230,6 @@ function getNearestComponent(element) {
 
   const hints = getElementHints(element);
 
-  // Step 1: Find the best source location from the element's own fiber chain.
-  // Host fibers (div, span, etc.) have _debugSource pointing to where the
-  // element is WRITTEN in source — more precise than the component's _debugSource
-  // which points to where the component is USED.
   let elementSource = null;
   let current = fiber;
   while (current) {
@@ -138,7 +237,7 @@ function getNearestComponent(element) {
       const src = current._debugSource.fileName;
       if (!SKIP_DIRS.some(d => src.includes(d))) {
         elementSource = {
-          fileName: src.replace(/^\/app\//, '/'),
+          fileName: src.replace(/^\/app\//, ''),
           line: current._debugSource.lineNumber,
           col: current._debugSource.columnNumber
         };
@@ -148,7 +247,6 @@ function getNearestComponent(element) {
     current = current.return;
   }
 
-  // Step 2: Walk up to find the nearest user component for the name
   let componentName = 'Anonymous';
   let componentFiber = null;
   current = fiber;
@@ -166,14 +264,12 @@ function getNearestComponent(element) {
 
   if (!elementSource && !componentFiber) return null;
 
-  // Prefer the element's own source (more precise), fall back to component's
   const source = elementSource || {
-    fileName: componentFiber._debugSource.fileName.replace(/^\/app\//, '/'),
+    fileName: componentFiber._debugSource.fileName.replace(/^\/app\//, ''),
     line: componentFiber._debugSource.lineNumber,
     col: componentFiber._debugSource.columnNumber
   };
 
-  // Collect alternates: other unique source locations in the fiber chain
   const alternates = [];
   const primaryKey = `${source.fileName}:${source.line}`;
   const seenKeys = new Set([primaryKey]);
@@ -184,7 +280,7 @@ function getNearestComponent(element) {
       if (!SKIP_DIRS.some(d => src.includes(d))) {
         const name = current.type.displayName || current.type.name;
         if (name) {
-          const fn = src.replace(/^\/app\//, '/');
+          const fn = src.replace(/^\/app\//, '');
           const ln = current._debugSource.lineNumber;
           const key = `${fn}:${ln}`;
           if (!seenKeys.has(key)) {
@@ -209,7 +305,7 @@ function getNearestComponent(element) {
   };
 }
 
-// ── Fiber Annotation (pre-compute data-source on DOM elements) ──
+// ── Fiber Annotation ──
 
 let _annotationRAF = 0;
 
@@ -231,7 +327,6 @@ function annotateAll() {
 function walkFiber(fiber, nearestComponent) {
   if (!fiber) return;
 
-  // Track nearest user component name
   if (typeof fiber.type === 'function' || (typeof fiber.type === 'object' && fiber.type !== null)) {
     const name = fiber.type?.displayName || fiber.type?.name ||
                  fiber.type?.render?.displayName || fiber.type?.render?.name;
@@ -240,11 +335,10 @@ function walkFiber(fiber, nearestComponent) {
     }
   }
 
-  // Annotate host elements (div, span, etc.) with source info
   if (fiber.stateNode && fiber.stateNode.nodeType === 1) {
     const src = findDebugSource(fiber);
     if (src) {
-      const fn = src.fileName.replace(/^\/app\//, '/');
+      const fn = src.fileName.replace(/^\/app\//, '');
       fiber.stateNode.setAttribute('data-source', `${fn}:${src.lineNumber}:${src.columnNumber || 0}`);
       if (nearestComponent) {
         fiber.stateNode.setAttribute('data-component', nearestComponent);
@@ -272,8 +366,6 @@ function isSkippedPath(fileName) {
   return SKIP_DIRS.some(d => fileName.includes(d));
 }
 
-// ── Annotation-based Hover Resolution ──
-
 function getSourceFromAnnotation(element) {
   let el = element;
   while (el && el !== document.documentElement) {
@@ -282,17 +374,12 @@ function getSourceFromAnnotation(element) {
       const name = inferNameFromPath(src);
       const parsed = parseSourceAttr(src);
 
-      // Collect hints from the hovered element (needed for line correction —
-      // _debugSource line numbers can be offset by Vite's react-refresh preamble)
       const hints = getElementHints(element);
       if (name && !hints.includes(name)) hints.push(name);
 
-      // Collect alternates: fiber component-usage chain first (most relevant —
-      // shows WHERE this component is used), then DOM ancestors as fallback.
       const alternates = [];
       const seenKeys = new Set([`${parsed.fileName}:${parsed.line}`]);
 
-      // 1. Fiber chain: component usage (e.g. SidebarItemLinks.jsx calling <SidebarItemLink>)
       const fiber = getFiber(el);
       if (fiber) {
         let f = fiber.return;
@@ -301,7 +388,7 @@ function getSourceFromAnnotation(element) {
           if (typeof f.type === 'function' && f._debugSource) {
             const src2 = f._debugSource;
             if (!isSkippedPath(src2.fileName)) {
-              const fn = src2.fileName.replace(/^\/app\//, '/');
+              const fn = src2.fileName.replace(/^\/app\//, '');
               const ln = src2.lineNumber;
               const key = `${fn}:${ln}`;
               if (!seenKeys.has(key)) {
@@ -316,7 +403,6 @@ function getSourceFromAnnotation(element) {
         }
       }
 
-      // 2. DOM ancestors: element definition chain (fills remaining slots)
       let parent = el.parentElement;
       while (parent && parent !== document.documentElement && alternates.length < 5) {
         const ps = parent.getAttribute('data-source');
@@ -367,14 +453,27 @@ function inferNameFromPath(dataSource) {
   return base;
 }
 
-// ── Overlay (CSS Anchor Positioning) ──
+// ── Vite origin detection ──
+
+let _viteOrigin = null;
+function getViteOrigin() {
+  if (_viteOrigin !== null) return _viteOrigin;
+  const viteScript = document.querySelector('script[src*="/@vite/"], script[src*="/@react-refresh"]');
+  _viteOrigin = viteScript ? new URL(viteScript.src).origin : location.origin;
+  return _viteOrigin;
+}
+
+// ── Source-read wrapper ──
+
+function readSource(file, line, context, hints, callback) {
+  awaitPluginHook('onRequestReadSource', { file, line, context, hints: hints || [] })
+    .then(callback, (e) => callback({ success: false, error: String(e?.message || e) }));
+}
+
+// ── Overlay styles (injected lazily) ──
 
 const ANCHOR_NAME = '--react-goto-target';
-let prevAnchor = null;
-
-// Inject styles for anchor positioning
-const style = document.createElement('style');
-style.textContent = `
+const OVERLAY_CSS = `
   ._react-goto-highlight {
     position: fixed;
     position-anchor: ${ANCHOR_NAME};
@@ -543,97 +642,68 @@ style.textContent = `
   }
 `;
 
-// ── Open in editor with loading indicator ──
+// ── Lazy UI ──
 
-function openInEditor(component) {
-  // Show progress bar at top of tooltip
-  const loader = document.createElement('div');
-  loader.className = '_react-goto-loader';
-  tooltip.insertBefore(loader, tooltip.firstChild);
+let _ui = null;
 
-  // Remove any previous error
-  tooltip.querySelector('._react-goto-error')?.remove();
+function ensureUI() {
+  if (_ui) return _ui;
 
-  document.dispatchEvent(new CustomEvent('__react-goto-component', {
-    detail: { component, projectRoot: PROJECT_ROOT }
-  }));
-  let result = null;
-  const minTime = new Promise(r => setTimeout(r, 800));
-  const response = new Promise(r => {
-    const handler = (e) => { result = e.detail; r(); document.removeEventListener('__react-goto-open-result', handler); };
-    document.addEventListener('__react-goto-open-result', handler);
-    setTimeout(() => { r(); document.removeEventListener('__react-goto-open-result', handler); }, 3000);
+  const style = document.createElement('style');
+  style.textContent = OVERLAY_CSS;
+
+  const highlight = document.createElement('div');
+  highlight.className = '_react-goto-highlight';
+
+  const tooltip = document.createElement('div');
+  tooltip.className = '_react-goto-tooltip';
+
+  const label = document.createElement('div');
+  label.className = '_react-goto-label';
+
+  const labelText = document.createElement('span');
+  labelText.className = '_react-goto-label-text';
+
+  const labelCopyBtn = document.createElement('button');
+  labelCopyBtn.className = '_react-goto-copy';
+  labelCopyBtn.textContent = '\u2398';
+
+  const labelGoBtn = document.createElement('button');
+  labelGoBtn.className = '_react-goto-alt-go';
+  labelGoBtn.textContent = '\u2192';
+
+  label.appendChild(labelText);
+  label.appendChild(labelCopyBtn);
+  label.appendChild(labelGoBtn);
+
+  const codePreview = document.createElement('pre');
+  codePreview.className = '_react-goto-code';
+  if (!SHOW_PREVIEW) codePreview.style.display = 'none';
+
+  const alternatesContainer = document.createElement('div');
+  alternatesContainer.className = '_react-goto-alternates';
+
+  tooltip.appendChild(label);
+  tooltip.appendChild(codePreview);
+  tooltip.appendChild(alternatesContainer);
+
+  tooltip.addEventListener('mouseleave', () => {
+    if (!tooltipPinned) return;
+    unpinTimeout = setTimeout(() => {
+      if (!tooltipPinned) return;
+      if (isMouseOverTooltip()) return;
+      unpinTooltip();
+    }, 1000);
   });
-  Promise.all([minTime, response]).then(() => {
-    loader.remove();
-    if (result && !result.success && result.error) {
-      const err = document.createElement('div');
-      err.className = '_react-goto-error';
-      err.textContent = result.error;
-      tooltip.insertBefore(err, tooltip.firstChild);
-    }
-  });
+  tooltip.addEventListener('mouseenter', () => { clearTimeout(unpinTimeout); });
+
+  _ui = { style, highlight, tooltip, label, labelText, labelCopyBtn, labelGoBtn, codePreview, alternatesContainer };
+  return _ui;
 }
 
-const highlight = document.createElement('div');
-highlight.className = '_react-goto-highlight';
+// ── Anchor positioning ──
 
-const tooltip = document.createElement('div');
-tooltip.className = '_react-goto-tooltip';
-
-const label = document.createElement('div');
-label.className = '_react-goto-label';
-
-const labelText = document.createElement('span');
-labelText.className = '_react-goto-label-text';
-
-const labelCopyBtn = document.createElement('button');
-labelCopyBtn.className = '_react-goto-copy';
-labelCopyBtn.textContent = '\u2398';
-
-const labelGoBtn = document.createElement('button');
-labelGoBtn.className = '_react-goto-alt-go';
-labelGoBtn.textContent = '→';
-
-label.appendChild(labelText);
-label.appendChild(labelCopyBtn);
-label.appendChild(labelGoBtn);
-
-const codePreview = document.createElement('pre');
-codePreview.className = '_react-goto-code';
-
-const alternatesContainer = document.createElement('div');
-alternatesContainer.className = '_react-goto-alternates';
-
-tooltip.appendChild(label);
-tooltip.appendChild(codePreview);
-tooltip.appendChild(alternatesContainer);
-
-let nextReqId = 0;
-let mainReqId = 0;
-
-// Detect Vite dev server origin from script tags (cached after first call)
-let _viteOrigin = null;
-function getViteOrigin() {
-  if (_viteOrigin !== null) return _viteOrigin;
-  const viteScript = document.querySelector('script[src*="/@vite/"], script[src*="/@react-refresh"]');
-  _viteOrigin = viteScript ? new URL(viteScript.src).origin : location.origin;
-  return _viteOrigin;
-}
-
-function readSource(file, line, context, hints, callback) {
-  const reqId = ++nextReqId;
-  const handler = (e) => {
-    if (e.detail?.reqId !== reqId) return;
-    document.removeEventListener('__react-goto-source-result', handler);
-    callback(e.detail);
-  };
-  document.addEventListener('__react-goto-source-result', handler);
-  document.dispatchEvent(new CustomEvent('__react-goto-read-source', {
-    detail: { file, line, context, hints: hints || [], reqId, origin: getViteOrigin(), projectRoot: PROJECT_ROOT }
-  }));
-  return reqId;
-}
+let prevAnchor = null;
 
 function setAnchor(element) {
   if (prevAnchor) prevAnchor.style.anchorName = '';
@@ -646,37 +716,64 @@ function clearAnchor() {
   prevAnchor = null;
 }
 
+// ── Open in editor with loading indicator ──
+
+function openInEditor(component) {
+  const ui = ensureUI();
+  const loader = document.createElement('div');
+  loader.className = '_react-goto-loader';
+  ui.tooltip.insertBefore(loader, ui.tooltip.firstChild);
+  ui.tooltip.querySelector('._react-goto-error')?.remove();
+
+  const minTime = new Promise(r => setTimeout(r, 800));
+  const responsePromise = awaitPluginHook('onRequestOpen', component)
+    .catch((e) => ({ success: false, error: String(e?.message || e) }));
+
+  Promise.all([minTime, responsePromise]).then(([, result]) => {
+    loader.remove();
+    if (result && !result.success && result.error) {
+      const err = document.createElement('div');
+      err.className = '_react-goto-error';
+      err.textContent = result.error;
+      ui.tooltip.insertBefore(err, ui.tooltip.firstChild);
+    }
+  });
+}
+
+// ── Overlay rendering ──
+
+let mainReqId = 0;
+
 function showOverlay(comp) {
+  const ui = ensureUI();
   if (!comp.hoveredElement) { hideOverlay(); return; }
 
   setAnchor(comp.hoveredElement);
 
   const shortFile = comp.fileName.split('/').pop();
-  labelText.textContent = `▾ ${comp.name}  ·  ${shortFile}:${comp.line}`;
+  ui.labelText.textContent = `\u25BE ${comp.name}  \u00B7  ${shortFile}:${comp.line}`;
 
-  highlight.style.display = '';
-  tooltip.style.display = '';
-  alternatesContainer.innerHTML = '';
+  ui.highlight.style.display = '';
+  ui.tooltip.style.display = '';
+  ui.alternatesContainer.innerHTML = '';
 
-  // Toggle main code preview on header click
-  labelCopyBtn.onclick = (e) => {
+  ui.labelCopyBtn.onclick = (e) => {
     e.stopPropagation();
     const path = `${fullPath(comp.fileName)}:${comp.matchedLine || comp.line}`;
     navigator.clipboard.writeText(path);
-    labelCopyBtn.textContent = '\u2713';
-    setTimeout(() => { labelCopyBtn.textContent = '\u2398'; }, 1000);
+    ui.labelCopyBtn.textContent = '\u2713';
+    setTimeout(() => { ui.labelCopyBtn.textContent = '\u2398'; }, 1000);
   };
 
-  label.onclick = (e) => {
-    if (e.target === labelGoBtn || e.target === labelCopyBtn) return;
+  ui.label.onclick = (e) => {
+    if (e.target === ui.labelGoBtn || e.target === ui.labelCopyBtn) return;
     e.stopPropagation();
-    const collapsing = codePreview.style.display !== 'none';
-    codePreview.style.display = collapsing ? 'none' : '';
-    labelText.textContent = `${collapsing ? '▸' : '▾'} ${comp.name}  ·  ${shortFile}:${comp.matchedLine || comp.line}`;
+    const collapsing = ui.codePreview.style.display !== 'none';
+    ui.codePreview.style.display = collapsing ? 'none' : '';
+    ui.labelText.textContent = `${collapsing ? '\u25B8' : '\u25BE'} ${comp.name}  \u00B7  ${shortFile}:${comp.matchedLine || comp.line}`;
   };
 
-  // Go button opens the file
-  labelGoBtn.onclick = (e) => {
+  ui.labelGoBtn.onclick = (e) => {
     e.stopPropagation();
     const { hints, hoveredElement, alternates, ...compData } = comp;
     if (comp.matchedLine) compData.line = comp.matchedLine;
@@ -684,34 +781,33 @@ function showOverlay(comp) {
   };
 
   if (!SHOW_PREVIEW) {
-    codePreview.style.display = 'none';
-    alternatesContainer.style.display = 'none';
+    ui.codePreview.style.display = 'none';
+    ui.alternatesContainer.style.display = 'none';
     return;
   }
-  codePreview.style.display = '';
-  alternatesContainer.style.display = '';
+  ui.codePreview.style.display = '';
+  ui.alternatesContainer.style.display = '';
 
-  // Request target line + 1 above and 1 below
-  const reqId = readSource(
+  const reqId = ++mainReqId;
+  readSource(
     `${fullPath(comp.fileName)}`, comp.line, 2, comp.hints,
     (resp) => {
       if (reqId !== mainReqId) return;
       if (!resp?.success) {
-        codePreview.textContent = resp?.error || 'Failed to read source';
+        ui.codePreview.textContent = resp?.error || 'Failed to read source';
         return;
       }
 
       comp.matchedLine = resp.targetLine;
-      labelText.textContent = `▾ ${comp.name}  ·  ${shortFile}:${resp.targetLine}`;
+      ui.labelText.textContent = `\u25BE ${comp.name}  \u00B7  ${shortFile}:${resp.targetLine}`;
 
-      // Strip common leading whitespace
       const minIndent = resp.lines.reduce((min, l) => {
         if (!l.text) return min;
         const m = l.text.match(/^\s*/);
         return Math.min(min, m[0].length);
       }, Infinity);
 
-      codePreview.innerHTML = '';
+      ui.codePreview.innerHTML = '';
       resp.lines.forEach(l => {
         const line = document.createElement('div');
         if (l.num === resp.targetLine) line.className = '_react-goto-code-line--target';
@@ -724,13 +820,11 @@ function showOverlay(comp) {
           e.stopPropagation();
           openInEditor({ name: comp.name, fileName: comp.fileName, line: l.num, col: 0 });
         });
-        codePreview.appendChild(line);
+        ui.codePreview.appendChild(line);
       });
     }
   );
-  mainReqId = reqId;
 
-  // Render alternates
   (comp.alternates || []).slice(0, 5).forEach(alt => {
     const altShortFile = alt.fileName.split('/').pop();
 
@@ -739,7 +833,7 @@ function showOverlay(comp) {
 
     const altLabel = document.createElement('span');
     altLabel.className = '_react-goto-alt-label';
-    altLabel.textContent = `▸ ${alt.name}  ·  ${altShortFile}`;
+    altLabel.textContent = `\u25B8 ${alt.name}  \u00B7  ${altShortFile}`;
 
     const copyBtn = document.createElement('button');
     copyBtn.className = '_react-goto-copy';
@@ -747,17 +841,17 @@ function showOverlay(comp) {
 
     const goBtn = document.createElement('button');
     goBtn.className = '_react-goto-alt-go';
-    goBtn.textContent = '→';
+    goBtn.textContent = '\u2192';
 
     header.appendChild(altLabel);
     header.appendChild(copyBtn);
     header.appendChild(goBtn);
-    alternatesContainer.appendChild(header);
+    ui.alternatesContainer.appendChild(header);
 
     const codeArea = document.createElement('div');
     codeArea.className = '_react-goto-alt-code';
     codeArea.style.display = 'none';
-    alternatesContainer.appendChild(codeArea);
+    ui.alternatesContainer.appendChild(codeArea);
 
     let loaded = false;
 
@@ -774,11 +868,11 @@ function showOverlay(comp) {
       e.stopPropagation();
       const expanding = codeArea.style.display === 'none';
       codeArea.style.display = expanding ? '' : 'none';
-      altLabel.textContent = `${expanding ? '▾' : '▸'} ${alt.name}  ·  ${altShortFile}${alt.matchedLine ? ':' + alt.matchedLine : ''}`;
+      altLabel.textContent = `${expanding ? '\u25BE' : '\u25B8'} ${alt.name}  \u00B7  ${altShortFile}${alt.matchedLine ? ':' + alt.matchedLine : ''}`;
 
       if (expanding && !loaded) {
         loaded = true;
-        codeArea.textContent = '…';
+        codeArea.textContent = '\u2026';
         readSource(
           `${fullPath(alt.fileName)}`, alt.line, 2, [alt.name],
           (resp) => {
@@ -787,7 +881,7 @@ function showOverlay(comp) {
               return;
             }
             alt.matchedLine = resp.targetLine;
-            altLabel.textContent = `▾ ${alt.name}  ·  ${altShortFile}:${resp.targetLine}`;
+            altLabel.textContent = `\u25BE ${alt.name}  \u00B7  ${altShortFile}:${resp.targetLine}`;
             const minIndent = resp.lines.reduce((min, l) => {
               if (!l.text) return min;
               return Math.min(min, l.text.match(/^\s*/)[0].length);
@@ -820,40 +914,87 @@ function showOverlay(comp) {
 }
 
 function hideOverlay() {
-  highlight.style.display = 'none';
-  tooltip.style.display = 'none';
+  if (!_ui) return;
+  _ui.highlight.style.display = 'none';
+  _ui.tooltip.style.display = 'none';
   clearAnchor();
 }
 
-// ── Option key hold = picker mode ──
+// ── Activation / picker state ──
 
 let pickerActive = false;
 let activeComp = null;
 let tooltipPinned = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
-
-document.addEventListener('mousemove', (e) => {
-  lastMouseX = e.clientX;
-  lastMouseY = e.clientY;
-}, true);
+let unpinTimeout = 0;
+let lastMoveTime = 0;
+let throttleId = 0;
+let switchTimeout = 0;
+let _lazyListenersInstalled = false;
 
 function isMouseOverTooltip() {
+  if (!_ui) return false;
   const el = document.elementFromPoint(lastMouseX, lastMouseY);
-  return el && tooltip.contains(el);
+  return el && _ui.tooltip.contains(el);
 }
 
-let unpinTimeout = 0;
+function installLazyListeners() {
+  if (_lazyListenersInstalled) return;
+  _lazyListenersInstalled = true;
+
+  document.addEventListener('mousemove', (e) => {
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+  }, true);
+
+  document.addEventListener('mousemove', onPickerMouseMove, true);
+  document.addEventListener('click', onPickerClick, true);
+  document.addEventListener('keyup', onPickerKeyUp, true);
+  window.addEventListener('blur', onWindowBlur);
+}
+
+function activate() {
+  if (DISABLED) return;
+  if (pickerActive) return;
+  const ui = ensureUI();
+  installLazyListeners();
+
+  pickerActive = true;
+  if (_annotationDirty || _fiberRoots.size === 0) annotateAll();
+  document.body.style.cursor = 'crosshair';
+  document.documentElement.appendChild(ui.style);
+  document.documentElement.appendChild(ui.highlight);
+  document.documentElement.appendChild(ui.tooltip);
+  broadcastStateChange();
+}
+
+function deactivate() {
+  if (!pickerActive && !tooltipPinned) return;
+  const wasActive = pickerActive;
+  pickerActive = false;
+  document.body.style.cursor = '';
+  clearTimeout(switchTimeout);
+  clearTimeout(throttleId);
+  if (_ui) {
+    _ui.highlight.remove();
+    if (!tooltipPinned) {
+      _ui.tooltip.remove();
+      _ui.style.remove();
+      clearAnchor();
+    }
+  }
+  if (wasActive) broadcastStateChange();
+}
 
 function pinTooltipInPlace() {
-  // Snapshot the tooltip's current position so it survives element removal/collapse.
-  // Switch from CSS anchor positioning to explicit fixed coordinates.
-  const rect = tooltip.getBoundingClientRect();
-  tooltip.style.positionAnchor = 'unset';
-  tooltip.style.positionArea = 'unset';
-  tooltip.style.marginTop = '0';
-  tooltip.style.top = rect.top + 'px';
-  tooltip.style.left = rect.left + 'px';
+  if (!_ui) return;
+  const rect = _ui.tooltip.getBoundingClientRect();
+  _ui.tooltip.style.positionAnchor = 'unset';
+  _ui.tooltip.style.positionArea = 'unset';
+  _ui.tooltip.style.marginTop = '0';
+  _ui.tooltip.style.top = rect.top + 'px';
+  _ui.tooltip.style.left = rect.left + 'px';
   clearAnchor();
 }
 
@@ -862,29 +1003,20 @@ function unpinTooltip() {
   clearTimeout(unpinTimeout);
   tooltipPinned = false;
   activeComp = null;
-  // Reset tooltip positioning back to anchor mode
-  tooltip.style.positionAnchor = '';
-  tooltip.style.positionArea = '';
-  tooltip.style.marginTop = '';
-  tooltip.style.top = '';
-  tooltip.style.left = '';
-  clearAnchor();
-  tooltip.remove();
-  style.remove();
+  if (_ui) {
+    _ui.tooltip.style.positionAnchor = '';
+    _ui.tooltip.style.positionArea = '';
+    _ui.tooltip.style.marginTop = '';
+    _ui.tooltip.style.top = '';
+    _ui.tooltip.style.left = '';
+    clearAnchor();
+    _ui.tooltip.remove();
+    _ui.style.remove();
+  }
+  broadcastStateChange();
 }
 
-tooltip.addEventListener('mouseleave', () => {
-  if (!tooltipPinned) return;
-  unpinTimeout = setTimeout(() => {
-    if (!tooltipPinned) return;
-    if (isMouseOverTooltip()) return;
-    unpinTooltip();
-  }, 1000);
-});
-
-tooltip.addEventListener('mouseenter', () => {
-  clearTimeout(unpinTimeout);
-});
+// ── Shortcut matching ──
 
 function matchesShortcut(e) {
   const pressed = new Set();
@@ -898,88 +1030,59 @@ function matchesShortcut(e) {
   return SHORTCUT_KEYS.every(k => pressed.has(k));
 }
 
-function hasShortcutModifiers(e) {
-  // Check if the shortcut's modifier keys are still held
-  for (const k of SHORTCUT_KEYS) {
-    if (k === 'Alt' && !e.altKey) return false;
-    if (k === 'Meta' && !e.metaKey) return false;
-    if (k === 'Control' && !e.ctrlKey) return false;
-    if (k === 'Shift' && !e.shiftKey) return false;
-  }
-  return true;
-}
+// ── Eager: keydown (arms picker) ──
 
 document.addEventListener('keydown', (e) => {
+  if (DISABLED) return;
   if (tooltipPinned && e.key === 'Escape') { unpinTooltip(); return; }
   if (tooltipPinned && matchesShortcut(e)) unpinTooltip();
   if (pickerActive || !matchesShortcut(e)) return;
-  pickerActive = true;
-  if (_annotationDirty || _fiberRoots.size === 0) annotateAll();
-  document.body.style.cursor = 'crosshair';
-  document.documentElement.appendChild(style);
-  document.documentElement.appendChild(highlight);
-  document.documentElement.appendChild(tooltip);
+  activate();
 }, true);
 
-document.addEventListener('keyup', (e) => {
+// ── Lazy: keyup, mousemove, click, blur ──
+
+function onPickerKeyUp(e) {
   if (!pickerActive) return;
-  // Deactivate when any of the shortcut keys is released
   if (SHORTCUT_KEYS.includes(e.key) || SHORTCUT_KEYS.includes(e.key.length === 1 ? e.key.toUpperCase() : e.key)) {
-    // Check BEFORE any DOM changes (clearAnchor would move the tooltip)
     const shouldPin = activeComp && isMouseOverTooltip();
 
     pickerActive = false;
     document.body.style.cursor = '';
     clearTimeout(switchTimeout);
     clearTimeout(throttleId);
-    highlight.remove();
+    if (_ui) _ui.highlight.remove();
 
     if (shouldPin) {
-      // Keep anchor + tooltip in place, just remove highlight
       tooltipPinned = true;
       pinTooltipInPlace();
     } else if (activeComp) {
-      // Brief grace period so user can move mouse to tooltip to pin it
       tooltipPinned = true;
       pinTooltipInPlace();
       setTimeout(() => {
-        if (!tooltipPinned) return; // already unpinned by Escape or re-activation
-        if (isMouseOverTooltip()) return; // mouse made it to tooltip — keep pinned
+        if (!tooltipPinned) return;
+        if (isMouseOverTooltip()) return;
         unpinTooltip();
       }, 600);
-    } else {
+    } else if (_ui) {
       clearAnchor();
-      tooltip.remove();
-      style.remove();
+      _ui.tooltip.remove();
+      _ui.style.remove();
     }
+    broadcastStateChange();
   }
-}, true);
+}
 
-// When window loses focus while Option is held, clean up
-window.addEventListener('blur', () => {
+function onWindowBlur() {
   if (tooltipPinned) { unpinTooltip(); return; }
   if (!pickerActive) return;
-  pickerActive = false;
-  document.body.style.cursor = '';
-  clearTimeout(switchTimeout);
-  clearTimeout(throttleId);
-  clearAnchor();
-  highlight.remove();
-  tooltip.remove();
-  style.remove();
-});
+  deactivate();
+}
 
-// ── Hover to highlight ──
-
-let lastMoveTime = 0;
-let throttleId = 0;
-let switchTimeout = 0;
-
-document.addEventListener('mousemove', (e) => {
+function onPickerMouseMove(e) {
   if (!pickerActive) return;
 
-  // Mouse over our overlay — cancel any pending switch, keep current
-  if (isMouseOverTooltip() || e.target === highlight) {
+  if (isMouseOverTooltip() || (_ui && e.target === _ui.highlight)) {
     clearTimeout(switchTimeout);
     clearTimeout(throttleId);
     return;
@@ -992,7 +1095,6 @@ document.addEventListener('mousemove', (e) => {
     lastMoveTime = Date.now();
     const comp = getSourceFromAnnotation(e.target) || getNearestComponent(e.target);
 
-    // No active overlay — show immediately
     if (!activeComp) {
       clearTimeout(switchTimeout);
       activeComp = comp;
@@ -1000,13 +1102,11 @@ document.addEventListener('mousemove', (e) => {
       return;
     }
 
-    // Same element — keep current
     if (comp && comp.hoveredElement === activeComp.hoveredElement) {
       clearTimeout(switchTimeout);
       return;
     }
 
-    // Different element — grace period before switching
     clearTimeout(switchTimeout);
     switchTimeout = setTimeout(() => {
       activeComp = comp;
@@ -1021,20 +1121,17 @@ document.addEventListener('mousemove', (e) => {
   } else {
     throttleId = setTimeout(run, 100 - elapsed);
   }
-}, true);
+}
 
-// ── Click to open in VS Code ──
-
-document.addEventListener('click', (e) => {
-  // Pinned tooltip: click inside is handled by section handlers; click outside dismisses
+function onPickerClick(e) {
   if (tooltipPinned) {
-    if (tooltip.contains(e.target)) return;
+    if (_ui && _ui.tooltip.contains(e.target)) return;
     unpinTooltip();
     return;
   }
 
   if (!pickerActive || !activeComp) return;
-  if (tooltip.contains(e.target)) return;
+  if (_ui && _ui.tooltip.contains(e.target)) return;
 
   e.preventDefault();
   e.stopPropagation();
@@ -1043,25 +1140,24 @@ document.addEventListener('click', (e) => {
   if (activeComp.matchedLine) compData.line = activeComp.matchedLine;
 
   openInEditor(compData);
-}, true);
+}
 
-// ── Context menu: right-click → Go to source ──
+// ── Context menu (right-click → Go to source) ──
 
 let lastContextTarget = null;
 document.addEventListener('contextmenu', (e) => {
   lastContextTarget = e.target;
 }, true);
 
-document.addEventListener('__react-goto-context-menu', () => {
+function handleContextMenu() {
+  if (DISABLED) return;
   if (!lastContextTarget) return;
 
-  // Ensure annotations are fresh
   if (_annotationDirty || _fiberRoots.size === 0) annotateAll();
 
   const comp = getSourceFromAnnotation(lastContextTarget) || getNearestComponent(lastContextTarget);
   if (!comp) return;
 
-  // Open directly — use readSource to get the corrected line, then open
   readSource(
     `${fullPath(comp.fileName)}`, comp.line, 0, comp.hints,
     (resp) => {
@@ -1069,4 +1165,4 @@ document.addEventListener('__react-goto-context-menu', () => {
       openInEditor({ name: comp.name, fileName: comp.fileName, line, col: comp.col || 0 });
     }
   );
-});
+}

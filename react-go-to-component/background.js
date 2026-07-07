@@ -1,5 +1,5 @@
 const NATIVE_HOST = 'com.react_goto_component.open_in_editor';
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.1.2';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { appVersion } = await chrome.storage.local.get('appVersion');
@@ -190,6 +190,47 @@ function correctLineViaSourceMap(sm, claimedLine) {
   return closest;
 }
 
+// ── Path resolution ──
+
+// Resolve a React _debugSource fileName to a real on-disk path.
+//   - Absolute paths (e.g. the git worktree the dev server is running from) are
+//     used verbatim. They may legitimately live outside the configured
+//     projectRoot, so validateRoot is empty → the native host skips its
+//     under-root check (path traversal is already stripped above).
+//   - Relative paths (e.g. Docker "src/..." after the /app strip) are joined
+//     under projectRoot, which the native host validates against.
+function resolveDiskPath(fileName, projectRoot) {
+  if (fileName.startsWith('/')) {
+    return { fullName: fileName, validateRoot: '' };
+  }
+  if (projectRoot) {
+    const root = projectRoot.endsWith('/') ? projectRoot : projectRoot + '/';
+    return { fullName: `${root}${fileName}`, validateRoot: projectRoot };
+  }
+  return { fullName: fileName, validateRoot: '' };
+}
+
+// Derive the dev-server URL path for a file, used to fetch & resolve its source
+// map for line correction.
+//   /Users/.../frontend_service/src/Foo.tsx        (under root)  → /src/Foo.tsx
+//   /Users/.../worktrees/.../frontend_service/src/Foo.tsx (worktree) → /src/Foo.tsx
+function deriveServedPath(file, projectRoot) {
+  if (!projectRoot) return file.startsWith('/') ? file : '/' + file;
+  if (file.startsWith(projectRoot)) {
+    const rel = file.slice(projectRoot.length);
+    return rel.startsWith('/') ? rel : '/' + rel;
+  }
+  // Absolute path from a different root (git worktree): strip everything up to
+  // and including the project's own directory name.
+  const base = projectRoot.replace(/\/+$/, '').split('/').pop();
+  if (base) {
+    const marker = '/' + base + '/';
+    const i = file.lastIndexOf(marker);
+    if (i !== -1) return file.slice(i + marker.length - 1);
+  }
+  return file.startsWith('/') ? file : '/' + file;
+}
+
 // ── Message handling ──
 
 const BADGE_ACTIVE_COLOR = '#61dafb';
@@ -207,10 +248,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'OPEN_COMPONENT') {
     const comp = msg.component;
     if (!comp) return;
-    // Validate fileName doesn't escape projectRoot via path traversal
+    // Strip any path traversal, then build the on-disk path.
     const normalizedName = comp.fileName.replace(/\.\.\//g, '');
-    const fullName = msg.projectRoot && !normalizedName.startsWith(msg.projectRoot)
-      ? `${msg.projectRoot}${normalizedName}` : normalizedName;
+    const { fullName, validateRoot } = resolveDiskPath(normalizedName, msg.projectRoot);
     const filePath = `${fullName}:${comp.line}:${comp.col}`;
     chrome.storage.local.get({ editor: '/usr/local/bin/code', editorArgs: ['--goto'], originSettings: {} }, (settings) => {
       const originEditor = msg.origin ? settings.originSettings?.[msg.origin]?.editor : null;
@@ -220,7 +260,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         file: filePath,
         editor,
         editorArgs: settings.editorArgs,
-        projectRoot: msg.projectRoot
+        projectRoot: validateRoot
       }, (resp) => {
         if (chrome.runtime.lastError) {
           sendResponse({ success: false, error: chrome.runtime.lastError.message });
@@ -233,8 +273,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 
   if (msg.type === 'READ_SOURCE') {
-    // Try source map resolution, then send to native host
-    const srcPath = msg.projectRoot ? msg.file.replace(msg.projectRoot, '') : null;
+    // Dev-server URL path for fetching this module's source map (line correction).
+    const srcPath = deriveServedPath(msg.file, msg.projectRoot);
+    // Only enforce the native host's under-root check when the file actually
+    // lives under the configured root. A verbatim absolute path (git worktree)
+    // won't, so skip validation for it.
+    const validateRoot = (msg.projectRoot && msg.file.startsWith(msg.projectRoot)) ? msg.projectRoot : '';
 
     resolveSourceMap(msg.origin, srcPath).then(sm => {
       const correctedLine = correctLineViaSourceMap(sm, msg.line);
@@ -250,7 +294,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         line: correctedLine,
         context: msg.context || 5,
         hints: smWorked ? [] : (msg.hints || []),
-        projectRoot: msg.projectRoot
+        projectRoot: validateRoot
       }, (resp) => {
         if (chrome.runtime.lastError) {
           sendResponse({ success: false, error: chrome.runtime.lastError.message });
@@ -266,7 +310,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         line: msg.line,
         context: msg.context || 5,
         hints: msg.hints || [],
-        projectRoot: msg.projectRoot
+        projectRoot: validateRoot
       }, (resp) => {
         if (chrome.runtime.lastError) {
           sendResponse({ success: false, error: chrome.runtime.lastError.message });

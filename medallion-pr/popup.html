@@ -305,11 +305,16 @@
       font-size: 11px;
     }
 
-    .pr-status {
+    .pr-badges {
+      display: flex;
+      align-items: center;
+      gap: 3px;
       flex-shrink: 0;
+    }
+
+    .review-badge, .ci-badge {
       width: 14px;
       height: 14px;
-      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -317,10 +322,23 @@
       font-weight: 700;
     }
 
-    .pr-status.approved { background: var(--accent-green); color: #fff; }
-    .pr-status.changes { background: var(--accent-red); color: #fff; }
-    .pr-status.pending { background: var(--text-muted); color: var(--bg-base); }
-    .pr-status.unread { box-shadow: 0 0 0 2px var(--accent-red-dim); }
+    /* Review = circle, outline style (human judgment) */
+    .review-badge {
+      border-radius: 50%;
+      background: transparent;
+      border: 1.5px solid;
+    }
+    .review-badge.review-approved { border-color: var(--accent-green); color: var(--accent-green); }
+    .review-badge.review-changes { border-color: rgba(255, 107, 107, 0.4); color: rgba(255, 107, 107, 0.4); }
+    .review-badge.review-pending { border-color: var(--border); color: var(--border); }
+
+    /* CI = rounded square, filled style (machine status) */
+    .ci-badge { border-radius: 3px; }
+    .ci-badge.ci-pass { background: var(--accent-green); color: #fff; }
+    .ci-badge.ci-fail { background: var(--accent-red); color: #fff; }
+    .ci-badge.ci-pending { background: #d29922; color: #fff; }
+    .ci-badge.ci-conflict { background: #d29922; color: #fff; }
+    .ci-badge.ci-unknown { background: var(--border); color: var(--text-muted); }
 
     .pr-row {
       border-left: 2px solid transparent;
@@ -329,6 +347,12 @@
 
     .pr-unread { border-left-color: var(--accent-blue); }
     .pr-unread .pr-title { color: var(--text-primary); font-weight: 500; }
+
+    .pr-mergeable {
+      background: rgba(63, 185, 80, 0.06);
+      border-left-color: var(--accent-green);
+    }
+    .pr-mergeable.pr-unread { border-left-color: var(--accent-green); }
 
     .pr-title {
       flex: 1;
