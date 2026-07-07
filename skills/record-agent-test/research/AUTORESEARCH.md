@@ -171,7 +171,8 @@ Ordered by expected ROI from the 2026-07-06 instrumented runs
 
 | date | sha | T_agent (median) | T_package | change |
 |---|---|---|---|---|
-| 2026-07-07 | baseline | **9334 ms** | 55426 ms | measured by bench.mjs, 3 runs, all gates green (SSIM ~0.998) |
+| 2026-07-07 | baseline | 9334 ms | 55426 ms | measured by bench.mjs, 3 runs, all gates green (SSIM ~0.998) |
+| 2026-07-07 | 2c431b7 | **8728 ms** | 55830 ms | start-path poll tightening: ping 150→50ms, waitForFile 200→50ms, connectCdp 300→100ms, recorder post-goto 300ms sleep dropped |
 
 ---
 

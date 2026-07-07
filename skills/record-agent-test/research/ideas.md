@@ -6,9 +6,7 @@ submit ~600 · finish ~1200–3800 · film ~45000 (background).
 
 ## Open (ranked by expected ROI)
 
-1. `warm` command: pre-boot daemon + recorder browser; `start` attaches (start ≈ 0)
 2. Persistent browser across sessions (profile pool); measure staleness risk
-3. Cut start poll intervals: fs.watch on ready-file, 50 ms CDP backoff (~0.4 s)
 4. Floor-find DOM-quiet window (120 ms) and STEP_GAP_MS (200 ms): halve until G1/G2 break, add 50% margin, freeze
 5. Skip DOM-quiet settle for portal-option clicks (dropdown close needs no wait)
 6. Date fill: `pressSequentially` delay 0 vs click+fill+Enter (300–830 ms today)
@@ -25,5 +23,9 @@ submit ~600 · finish ~1200–3800 · film ~45000 (background).
 
 ## Done
 
+- (2026-07-07, 2c431b7) 3. Start-path poll tightening — t_agent 9334→8728ms (KEEP)
+
 ## Rejected
+
+- (2026-07-07) 1. `warm` command: pre-boot daemon + recorder; rejected by analysis — frozen bench calls `start` directly, a separate warm verb can never appear in T_agent
 
