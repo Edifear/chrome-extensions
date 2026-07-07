@@ -109,7 +109,7 @@ async function cmdStart(flags) {
       console.error(`[session] daemon exited ${child.exitCode} — see ${path.relative(process.cwd(), DAEMON_LOG)}`);
       process.exit(child.exitCode);
     }
-    await sleep(150);
+    await sleep(50);
   }
   if (!(await ping(SOCKET))) {
     console.error(`[session] daemon did not come up in 15 s — see ${path.relative(process.cwd(), DAEMON_LOG)}`);

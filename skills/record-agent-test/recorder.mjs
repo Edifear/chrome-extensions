@@ -109,9 +109,6 @@ async function main() {
 
   const page = context.pages()[0] || (await context.newPage());
   await page.goto(cfg.url);
-  // Small settle so the recorder's injected listeners are firmly attached before
-  // the agent starts driving (the goto itself is already captured, this is insurance).
-  await sleep(300);
   log(`opened ${cfg.url} — recording. CDP endpoint: http://localhost:${cfg.cdpPort}`);
 
   // Announce readiness so the orchestrator can launch the agent.

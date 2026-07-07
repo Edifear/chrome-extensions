@@ -141,7 +141,7 @@ async function waitForFile(file, timeoutMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (existsSync(file)) return;
-    await sleep(200);
+    await sleep(50);
   }
   throw new Error(`timed out waiting for ${file} — check ${path.relative(ROOT, cfg.recorderLog)}`);
 }
@@ -164,7 +164,7 @@ async function connectCdp() {
     try {
       state.browser = await chromium.connectOverCDP(`http://localhost:${cfg.cdpPort}`);
       break;
-    } catch (e) { lastErr = e; await sleep(300); }
+    } catch (e) { lastErr = e; await sleep(100); }
   }
   if (!state.browser) throw lastErr;
   for (let i = 0; i < 40; i++) {
@@ -177,7 +177,7 @@ async function connectCdp() {
       state.page = p;
       return;
     }
-    await sleep(300);
+    await sleep(100);
   }
   throw new Error('could not find a page over CDP');
 }
