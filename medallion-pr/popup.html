@@ -312,7 +312,7 @@
       flex-shrink: 0;
     }
 
-    .review-badge, .ci-badge {
+    .review-badge, .ci-badge, .mq-badge {
       width: 14px;
       height: 14px;
       display: flex;
@@ -340,6 +340,14 @@
     .ci-badge.ci-conflict { background: #d29922; color: #fff; }
     .ci-badge.ci-unknown { background: var(--border); color: var(--text-muted); }
 
+    /* Merge queue = pill, filled purple (queued for merge, shows position) */
+    .mq-badge {
+      border-radius: 7px;
+      background: #8957e5;
+      color: #fff;
+    }
+    .mq-badge.mq-unmergeable { background: var(--accent-red); }
+
     .pr-row {
       border-left: 2px solid transparent;
       padding-left: 6px;
@@ -353,6 +361,12 @@
       border-left-color: var(--accent-green);
     }
     .pr-mergeable.pr-unread { border-left-color: var(--accent-green); }
+
+    .pr-queued {
+      background: rgba(137, 87, 229, 0.08);
+      border-left-color: #8957e5;
+    }
+    .pr-queued.pr-unread { border-left-color: #8957e5; }
 
     .pr-title {
       flex: 1;

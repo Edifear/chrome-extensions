@@ -118,6 +118,7 @@ async function renderItems(items) {
 
       let badgesHtml = '';
       let mergeable = false;
+      let queuedRow = false;
       if (isPR) {
         const rd = n.reviewDecision;
         let reviewClass = 'review-pending';
@@ -149,14 +150,33 @@ async function renderItems(items) {
           ciTitle = 'CI pending';
         }
 
-        mergeable = rd === 'APPROVED' && ciClass === 'ci-pass' && !conflicting;
+        // Merge queue takes over the machine-status slot — once queued, the
+        // queue's own checks decide the outcome, not the PR's rollup.
+        const queued = n.isInMergeQueue === true;
+        mergeable = !queued && rd === 'APPROVED' && ciClass === 'ci-pass' && !conflicting;
+
+        let statusHtml = `<div class="ci-badge ${ciClass}" title="${ciTitle}">${ciLabel}</div>`;
+        if (queued) {
+          queuedRow = true;
+          const position = n.mergeQueueEntry?.position;
+          const qState = n.mergeQueueEntry?.state;
+          const posLabel = position != null ? (position > 9 ? '9+' : String(position)) : '≡';
+          const posTitle = position != null ? ` (#${position} in queue)` : '';
+          let mqClass = 'mq-queued';
+          let mqTitle = `In merge queue${posTitle}`;
+          if (qState === 'AWAITING_CHECKS') mqTitle = `In merge queue — checks running${posTitle}`;
+          else if (qState === 'MERGEABLE') mqTitle = `In merge queue — ready to merge${posTitle}`;
+          else if (qState === 'UNMERGEABLE') { mqClass = 'mq-unmergeable'; mqTitle = `In merge queue — unmergeable${posTitle}`; }
+          else if (qState === 'LOCKED') mqTitle = `In merge queue — locked${posTitle}`;
+          statusHtml = `<div class="mq-badge ${mqClass}" title="${mqTitle}">${posLabel}</div>`;
+        }
 
         badgesHtml = `<div class="pr-badges">
           <div class="review-badge ${reviewClass}" title="${reviewTitle}">${reviewLabel}</div>
-          <div class="ci-badge ${ciClass}" title="${ciTitle}">${ciLabel}</div>
+          ${statusHtml}
         </div>`;
       }
-      const rowClasses = ['pr-row', unread && 'pr-unread', mergeable && 'pr-mergeable'].filter(Boolean).join(' ');
+      const rowClasses = ['pr-row', unread && 'pr-unread', mergeable && 'pr-mergeable', queuedRow && 'pr-queued'].filter(Boolean).join(' ');
 
       return `<div class="${rowClasses}">
         <div class="pr-title truncate"><a href="${escapeHtml(n.url)}" target="_blank">${escapeHtml(n.title)}</a></div>

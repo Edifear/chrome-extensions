@@ -13,6 +13,8 @@ const SEARCH_QUERY = `
           __typename number title url isReadByViewer
           reviewDecision
           mergeable
+          isInMergeQueue
+          mergeQueueEntry { position state }
           commits(last: 1) {
             nodes {
               commit {
@@ -28,7 +30,7 @@ const SEARCH_QUERY = `
   }
 `;
 
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.0.8';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { appVersion } = await chrome.storage.local.get('appVersion');
