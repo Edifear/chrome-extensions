@@ -368,6 +368,18 @@
     }
     .pr-queued.pr-unread { border-left-color: #8957e5; }
 
+    /* Fresh human feedback on my PR — overrides other row states */
+    .pr-row.pr-fresh {
+      background: rgba(210, 153, 34, 0.12);
+      border-left-color: #d29922;
+    }
+    .pr-fresh .pr-title { color: var(--text-primary); font-weight: 600; }
+    .fresh-badge {
+      flex-shrink: 0;
+      font-size: 10px;
+      line-height: 1;
+    }
+
     .pr-title {
       flex: 1;
       min-width: 0;

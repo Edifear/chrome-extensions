@@ -3,6 +3,7 @@ const GRAPHQL_URL = 'https://api.github.com/graphql';
 const ALARM_NAME = 'medallion-pr-sync';
 const SEARCH_QUERY = `
   query($q: String!) {
+    viewer { login }
     search(query: $q, type: ISSUE, first: 50) {
       issueCount
       nodes {
@@ -11,6 +12,9 @@ const SEARCH_QUERY = `
         }
         ... on PullRequest {
           __typename number title url isReadByViewer
+          author { login }
+          comments(last: 20) { nodes { createdAt author { __typename login } } }
+          reviews(last: 30) { nodes { submittedAt author { __typename login } } }
           reviewDecision
           mergeable
           isInMergeQueue
@@ -18,6 +22,7 @@ const SEARCH_QUERY = `
           commits(last: 1) {
             nodes {
               commit {
+                committedDate
                 statusCheckRollup {
                   state
                 }
@@ -30,7 +35,7 @@ const SEARCH_QUERY = `
   }
 `;
 
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.9';
 
 chrome.runtime.onInstalled.addListener(async () => {
   const { appVersion } = await chrome.storage.local.get('appVersion');
@@ -242,7 +247,44 @@ async function fetchSearchSingle(token, query) {
 
   const json = await res.json();
   if (json.errors && json.errors.length > 0) throw new Error(json.errors[0].message);
-  return json.data.search;
+  const viewer = json.data.viewer?.login;
+  const search = json.data.search;
+  return { ...search, nodes: search.nodes.map((n) => slimNode(n, viewer)) };
+}
+
+// Bots show up either as GraphQL `Bot` actors or as `login[bot]` users.
+function isHuman(actor) {
+  return actor != null && actor.__typename === 'User' && !/\[bot\]$|-bot$/i.test(actor.login);
+}
+
+// A PR of mine has "fresh human feedback" when the newest comment/review from
+// another real person is newer than my last activity on it (comment, review
+// reply, or pushed commit) — i.e. someone is waiting on me.
+function freshHumanFeedback(n, viewer) {
+  if (n.__typename !== 'PullRequest' || !viewer || n.author?.login !== viewer) return null;
+  const events = [
+    ...(n.comments?.nodes || []).map((c) => ({ at: c.createdAt, author: c.author })),
+    ...(n.reviews?.nodes || []).map((r) => ({ at: r.submittedAt, author: r.author })),
+  ].filter((e) => e.at);
+
+  let myLast = n.commits?.nodes?.[0]?.commit?.committedDate || '';
+  let latest = null;
+  for (const e of events) {
+    if (e.author?.login === viewer) {
+      if (e.at > myLast) myLast = e.at;
+    } else if (isHuman(e.author) && (!latest || e.at > latest.at)) {
+      latest = e;
+    }
+  }
+  if (!latest || latest.at <= myLast) return null;
+  return { login: latest.author.login, at: latest.at };
+}
+
+// Drop the raw comment/review lists so storage stays small.
+function slimNode(n, viewer) {
+  if (n.__typename !== 'PullRequest') return n;
+  const { comments, reviews, author, ...rest } = n;
+  return { ...rest, freshHuman: freshHumanFeedback(n, viewer) };
 }
 
 function updateBadge(items) {

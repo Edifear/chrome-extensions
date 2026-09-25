@@ -101,7 +101,10 @@ async function renderItems(items) {
   itemsContainer.innerHTML = items.map((item) => {
     const synced = item.lastChecked != null;
     const hasUnread = item.unreadCount > 0;
-    const alwaysExpanded = item.title === 'My PR';
+    // PRs with fresh human feedback float to the top (stable within groups)
+    const nodes = [...(item.nodes || [])].sort((a, b) => !!b.freshHuman - !!a.freshHuman);
+    const hasFresh = nodes.some((n) => n.freshHuman);
+    const alwaysExpanded = item.title === 'My PR' || hasFresh;
     const expandedClass = (hasUnread || alwaysExpanded) ? 'expanded' : '';
     const stateClass = `${hasUnread ? 'has-unread' : synced ? 'is-clean' : ''} ${expandedClass}`.trim();
     const countsClass = hasUnread ? 'has-unread' : '';
@@ -111,7 +114,6 @@ async function renderItems(items) {
     const issuesUrl = `https://github.com/trymedallion/medallion/pulls?q=${encodeURIComponent(item.query)}`;
     const hasTitle = item.title && item.title.trim();
 
-    const nodes = item.nodes || [];
     const detailsHtml = nodes.length ? nodes.map((n) => {
       const isPR = n.__typename === 'PullRequest';
       const unread = n.isReadByViewer === false;
@@ -176,9 +178,14 @@ async function renderItems(items) {
           ${statusHtml}
         </div>`;
       }
-      const rowClasses = ['pr-row', unread && 'pr-unread', mergeable && 'pr-mergeable', queuedRow && 'pr-queued'].filter(Boolean).join(' ');
+      const fresh = n.freshHuman;
+      const rowClasses = ['pr-row', unread && 'pr-unread', mergeable && 'pr-mergeable', queuedRow && 'pr-queued', fresh && 'pr-fresh'].filter(Boolean).join(' ');
+      const freshHtml = fresh
+        ? `<span class="fresh-badge" title="${escapeHtml(`New feedback from ${fresh.login} ${timeAgo(fresh.at)}`)}">\u{1F4AC}</span>`
+        : '';
 
       return `<div class="${rowClasses}">
+        ${freshHtml}
         <div class="pr-title truncate"><a href="${escapeHtml(n.url)}" target="_blank">${escapeHtml(n.title)}</a></div>
         ${badgesHtml}
         <span class="pr-number">#${n.number}</span>
